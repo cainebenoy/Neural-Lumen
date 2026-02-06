@@ -50,6 +50,7 @@ interface SimulationState {
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
   autoTraffic: boolean; // Auto-spawn vehicles
   gridFailure: boolean; // Grid failure mode (battery backup)
+  _tickCount: number; // Internal tick counter for throttling (not displayed)
   // Actions
   toggleFog: () => void;
   triggerCrash: (id: number) => void;
@@ -127,6 +128,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   powerHistory: [], // Start with empty history
   autoTraffic: false, // Auto-spawn disabled by default
   gridFailure: false, // Grid is operational
+  _tickCount: 0,
 
   /**
    * FOG MODE: Switches all poles to 'FOG_AMBER' mode
@@ -317,13 +319,15 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   }),
 
   /**
-   * TICK: Simulation loop
+   * TICK: Simulation loop (runs every 200ms = 5x per second)
    * - Updates wind harvest based on wind speed
    * - Calculates carbon credits based on energy savings vs baseline
-   * - Tracks power history for real-time telemetry graph
+   * - Tracks power history for real-time telemetry graph (1 point/sec)
    * - Updates vehicle physics and radar detection
    */
   tick: () => set((state) => {
+    const tickCount = state._tickCount + 1;
+
     // Calculate power consumption
     const WATTS_PER_PERCENT = 1.5; // 1.5W per 1% brightness
     const totalWatts = state.poles.reduce((acc, p) => {
@@ -339,30 +343,33 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
     const newPowerDraw = Number((totalWatts / 1000).toFixed(2));
 
-    // Update power history (ECG-style scrolling data)
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    });
-    
-    const newHistoryPoint: PowerHistoryPoint = {
-      time: timeString,
-      value: newPowerDraw,
-    };
+    // Update power history every 5 ticks (= once per second) to avoid graph flood
+    let updatedHistory = state.powerHistory;
+    if (tickCount % 5 === 0) {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+      
+      const newHistoryPoint: PowerHistoryPoint = {
+        time: timeString,
+        value: newPowerDraw,
+      };
 
-    // Keep only last 50 data points for performance
-    const updatedHistory = [...state.powerHistory, newHistoryPoint];
-    if (updatedHistory.length > 50) {
-      updatedHistory.shift(); // Remove oldest entry
+      // Keep only last 50 data points for performance
+      updatedHistory = [...state.powerHistory, newHistoryPoint];
+      if (updatedHistory.length > 50) {
+        updatedHistory.shift();
+      }
     }
 
-    // AUTO-TRAFFIC: Spawn vehicles automatically with ~3% chance per tick
-    // At 1 tick/sec, this creates roughly 1 vehicle every 30-35 seconds
+    // AUTO-TRAFFIC: Spawn vehicles automatically with ~0.6% chance per tick
+    // At 5 ticks/sec, this creates roughly 1 vehicle every 30-35 seconds
     let vehiclesToUpdate = state.vehicles;
-    if (state.autoTraffic && Math.random() < 0.03) {
+    if (state.autoTraffic && Math.random() < 0.006) {
       const isTruck = Math.random() < 0.3; // 30% chance of truck
       const newVehicle: Vehicle = {
         id: Date.now() + Math.random(),
@@ -375,8 +382,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     }
 
     // VEHICLE PHYSICS ENGINE
-    // Move vehicles forward based on speed (assuming 1 second tick)
-    // Highway is 2km = 100% width, so speed % = (speed_km/h / 3600s) / 2km * 100 = speed / 72
+    // Move vehicles forward based on speed (200ms tick = 1/5 second)
+    // Highway is 2km = 100% width, so speed % per tick = speed / (72 * 5) = speed / 360
     // Weather caps effective speed for realism
     const speedMultiplier = getWeatherSpeedMultiplier(state.env.weather, state.env.fog);
     const updatedVehicles = vehiclesToUpdate
@@ -384,7 +391,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         const effectiveSpeed = Math.min(vehicle.speed, vehicle.speed * speedMultiplier);
         return {
           ...vehicle,
-          x_pos: vehicle.x_pos + (effectiveSpeed / 72), // Convert km/h to % per second (2km highway)
+          x_pos: vehicle.x_pos + (effectiveSpeed / 360), // 200ms tick movement
         };
       })
       .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
@@ -394,7 +401,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     const updatedPoles = state.poles.map((pole, index) => {
       // Auto-recover CRASH/WARNING states (~8 second average recovery)
       if (pole.status === 'CRASH' || pole.status === 'WARNING') {
-        if (Math.random() < 0.12) {
+        if (Math.random() < 0.024) {
           // Recover: determine correct mode based on current env
           const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
           const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
@@ -456,7 +463,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       return {
         ...pole,
         brightness: pole.brightness > standardBrightness 
-          ? Math.max(standardBrightness, pole.brightness - 15) // Faster fade (was 10)
+          ? Math.max(standardBrightness, pole.brightness - 3) // Gradual fade (scaled for 200ms tick)
           : standardBrightness,
       };
     });
@@ -464,7 +471,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     return {
       metrics: {
         powerDraw: newPowerDraw,
-        carbonCredits: state.metrics.carbonCredits + (savings * 0.0001), // Accumulate credits
+        carbonCredits: state.metrics.carbonCredits + (savings * 0.00002), // Accumulate credits (scaled for 200ms tick)
       },
       poles: updatedPoles.map(p => ({
         ...p,
@@ -472,6 +479,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       })),
       powerHistory: updatedHistory,
       vehicles: updatedVehicles,
+      _tickCount: tickCount,
     };
   }),
 
@@ -562,5 +570,6 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     powerHistory: [], // Clear history on reset
     autoTraffic: false, // Reset auto-traffic
     gridFailure: false, // Reset grid
+    _tickCount: 0,
   })
 }));

@@ -26,9 +26,10 @@ export default function Home() {
     tick();
   }, [tick]);
 
-  // Simulation Loop: Call tick() every 1 second
+  // Simulation Loop: Call tick() every 200ms for smooth vehicle animation
+  // (5x per second — each tick moves vehicles 1/5th of a 1-second step)
   useEffect(() => {
-    const interval = setInterval(() => handleTick(), 1000);
+    const interval = setInterval(() => handleTick(), 200);
     return () => clearInterval(interval);
   }, [handleTick]);
 

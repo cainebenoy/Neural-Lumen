@@ -77,8 +77,8 @@ export const Highway = () => {
               initial={{ left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{ 
-                left: { duration: 0.05, ease: "linear" },
-                bottom: { duration: 0.05, ease: "linear" },
+                left: { duration: 0.2, ease: "linear" },
+                bottom: { duration: 0.2, ease: "linear" },
                 scale: { duration: 0.3 },
                 opacity: { duration: 0.3 },
               }}
