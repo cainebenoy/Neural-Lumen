@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar for the Industrial Look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #141517; 
+}
+::-webkit-scrollbar-thumb {
+  background: #373a40; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5c5f66; 
+}
+
+/* Asphalt Texture Pattern */
+.asphalt-texture {
+  background-image: radial-gradient(circle, rgba(100, 100, 100, 0.3) 1px, transparent 1px);
+  background-size: 100px 100px;
+  background-repeat: repeat;
+}
+
+/* Slider Styling for Firefox */
+input[type="range"]::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+input[type="range"]::-moz-range-progress {
+  background: transparent;
+}
