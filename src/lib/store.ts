@@ -128,7 +128,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       if (isEcoHours) {
         return {
           ...p,
-          mode: 'ECO_DIM',
+          mode: 'ECO_DIM' as PoleMode,
           brightness: 30,
         };
       }
@@ -136,7 +136,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       // Otherwise, respect fog mode or return to standard
       return {
         ...p,
-        mode: state.env.fog ? 'FOG_AMBER' : 'STANDARD',
+        mode: (state.env.fog ? 'FOG_AMBER' : 'STANDARD') as PoleMode,
         brightness: state.env.fog ? 100 : 80,
       };
     });

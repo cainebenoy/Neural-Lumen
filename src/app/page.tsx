@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Highway } from '@/components/simulation/Highway';
+import { MapViewport } from '@/components/simulation/MapViewport';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { useSimulationStore } from '@/lib/store';
-import { Activity } from 'lucide-react';
+import { Activity, Map, Grid3x3 } from 'lucide-react';
 
 /**
  * Neural-Lumen Main Page
@@ -12,6 +13,7 @@ import { Activity } from 'lucide-react';
  */
 export default function Home() {
   const { metrics, tick } = useSimulationStore();
+  const [viewMode, setViewMode] = useState<'simulation' | 'map'>('map');
 
   // Simulation Loop: Call tick() every 1 second
   useEffect(() => {
@@ -26,22 +28,50 @@ export default function Home() {
       <div className="flex-1 flex flex-col p-6">
         
         {/* HEADER: Top Status Bar */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-100 flex items-center gap-3 mb-2">
-            <Activity className="text-cyan-400" size={32} />
-            NEURAL-LUMEN
-            <span className="text-xs bg-slate-800/60 px-3 py-1 rounded text-slate-400 font-mono tracking-widest border border-slate-700/50">
-              v1.0
-            </span>
-          </h1>
-          <p className="text-xs text-slate-500 font-mono tracking-wide">
-            Smart Highway Lighting System // Digital Twin Simulation
-          </p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-100 flex items-center gap-3 mb-2">
+              <Activity className="text-cyan-400" size={32} />
+              NEURAL-LUMEN
+              <span className="text-xs bg-slate-800/60 px-3 py-1 rounded text-slate-400 font-mono tracking-widest border border-slate-700/50">
+                v1.0
+              </span>
+            </h1>
+            <p className="text-xs text-slate-500 font-mono tracking-wide">
+              Smart Highway Lighting System // Digital Twin Simulation
+            </p>
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex gap-2 bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
+                viewMode === 'map'
+                  ? 'bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Map size={16} />
+              <span className="text-xs font-mono font-bold">MAP VIEW</span>
+            </button>
+            <button
+              onClick={() => setViewMode('simulation')}
+              className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
+                viewMode === 'simulation'
+                  ? 'bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Grid3x3 size={16} />
+              <span className="text-xs font-mono font-bold">SIMULATION</span>
+            </button>
+          </div>
         </div>
 
-        {/* CENTER: Highway Simulation */}
+        {/* CENTER: Dynamic Viewport */}
         <div className="flex-1 flex items-center justify-center">
-          <Highway />
+          {viewMode === 'map' ? <MapViewport /> : <Highway />}
         </div>
 
         {/* HUD: Digital LCD Readout Metrics */}
