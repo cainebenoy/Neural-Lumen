@@ -2,15 +2,24 @@
 
 import { useSimulationStore } from '@/lib/store';
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
+import type { Pole } from '@/lib/store';
+
+interface MapComponentWrapperProps {
+  mapCenter: [number, number];
+  poles: Pole[];
+  getPoleCoordinates: (index: number) => [number, number];
+  getPoleColor: (mode: string) => string;
+  getMarkerRadius: (brightness: number) => number;
+  formatPower: (brightness: number) => string;
+}
 
 // Use dynamic import with properly typed components
-const MapComponentWrapper = dynamic(
-  () => import('./MapComponentWrapper'),
+const MapComponentWrapper = dynamic<MapComponentWrapperProps>(
+  () => import('@/components/simulation/MapComponentWrapper'),
   { ssr: false }
 );
-
-import dynamic from 'next/dynamic';
 
 /**
  * GeoMap Component - Geospatial Visualization

@@ -48,24 +48,24 @@ export const WeatherOverlay = () => {
 
       for (let i = 0; i < particleCount; i++) {
         if (env.weather === 'RAIN') {
-          // Rain: Fast-falling blue lines
+          // Rain: Fast-falling blue lines — spread across full canvas
           particlesRef.current.push({
             x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height - canvas.height,
+            y: Math.random() * canvas.height,
             length: 15 + Math.random() * 10,
             width: 1,
             speed: 8 + Math.random() * 4,
-            color: `rgba(96, 165, 250, ${0.6 + Math.random() * 0.4})`, // Blue with opacity variance
+            color: `rgba(96, 165, 250, ${0.6 + Math.random() * 0.4})`,
           });
         } else if (env.weather === 'SNOW') {
-          // Snow: Slow-falling white circles
+          // Snow: Slow-falling white circles — spread across full canvas
           particlesRef.current.push({
             x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height - canvas.height,
+            y: Math.random() * canvas.height,
             radius: 2 + Math.random() * 4,
             speed: 0.5 + Math.random() * 1.5,
             drift: (Math.random() - 0.5) * 0.5,
-            color: `rgba(255, 255, 255, ${0.4 + Math.random() * 0.4})`, // White with opacity variance
+            color: `rgba(255, 255, 255, ${0.4 + Math.random() * 0.4})`,
           });
         }
       }
@@ -75,9 +75,8 @@ export const WeatherOverlay = () => {
 
     // Animation loop
     const animate = () => {
-      // Clear canvas
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas fully to prevent darkening accumulation
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particlesRef.current.forEach((particle) => {
         if (env.weather === 'RAIN') {

@@ -17,14 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body 
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
-        style={{
-          fontFamily: 'var(--font-inter), system-ui, sans-serif',
-          margin: 0,
-          padding: 0,
-        }}
-      >
+      <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans m-0 p-0`}>
         {children}
       </body>
     </html>

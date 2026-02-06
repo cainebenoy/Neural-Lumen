@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import { Pole } from '@/lib/store';
 
-interface MapComponentWrapperProps {
+export interface MapComponentWrapperProps {
   mapCenter: [number, number];
   poles: Pole[];
   getPoleCoordinates: (index: number) => [number, number];
