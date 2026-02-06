@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Highway } from '@/components/simulation/Highway';
 // import { MapViewport } from '@/components/simulation/MapViewport';
 import { GeoMap } from '@/components/simulation/GeoMap';
@@ -13,14 +13,21 @@ import { Activity, Map, Grid3x3, Globe } from 'lucide-react';
  * Smart Highway Lighting Digital Twin Simulation
  */
 export default function Home() {
-  const { metrics, tick } = useSimulationStore();
-  const [viewMode, setViewMode] = useState<'simulation' | 'geo'>('geo');
+  // Use selector to avoid re-renders on unrelated state changes
+  const metrics = useSimulationStore((state) => state.metrics);
+  const tick = useSimulationStore((state) => state.tick);
+  const [viewMode, setViewMode] = useState<'simulation' | 'geo'>('simulation');
+
+  // Memoize tick function to prevent interval reset
+  const handleTick = useCallback(() => {
+    tick();
+  }, [tick]);
 
   // Simulation Loop: Call tick() every 1 second
   useEffect(() => {
-    const interval = setInterval(() => tick(), 1000);
+    const interval = setInterval(() => handleTick(), 1000);
     return () => clearInterval(interval);
-  }, [tick]);
+  }, [handleTick]);
 
   return (
     <main className="flex h-screen w-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-slate-200 overflow-hidden">

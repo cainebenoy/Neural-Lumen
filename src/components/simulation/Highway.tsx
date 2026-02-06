@@ -2,23 +2,31 @@ import { useSimulationStore } from '@/lib/store';
 import { Pole } from './Pole';
 import { WeatherOverlay } from './WeatherOverlay';
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 /**
  * Highway Component - The Viewport
  * Industrial window into the Smart Highway simulation with kinetic traffic
  */
 export const Highway = () => {
-  const { poles, vehicles, spawnVehicle } = useSimulationStore();
+  // Use individual selectors to avoid unnecessary re-renders on every state change
+  const poles = useSimulationStore((state) => state.poles);
+  const vehicles = useSimulationStore((state) => state.vehicles);
+  const spawnVehicle = useSimulationStore((state) => state.spawnVehicle);
+
+  // Memoize spawn function to prevent interval reset on every render
+  const handleSpawn = useCallback(() => {
+    spawnVehicle();
+  }, [spawnVehicle]);
 
   // Auto-spawn vehicles every 3-5 seconds for continuous traffic
   useEffect(() => {
     const spawnInterval = setInterval(() => {
-      spawnVehicle();
+      handleSpawn();
     }, 3000 + Math.random() * 2000);
 
     return () => clearInterval(spawnInterval);
-  }, [spawnVehicle]);
+  }, [handleSpawn]);
 
   return (
     <div className="relative w-full max-w-6xl h-[400px] bg-black border-8 border-slate-800 rounded-lg overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8),inset_0_4px_8px_rgba(255,255,255,0.05)]">
@@ -96,8 +104,8 @@ export const Highway = () => {
               initial={{ left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{ 
-                left: { duration: 1, ease: "linear" },
-                bottom: { duration: 1, ease: "linear" },
+                left: { duration: 0.05, ease: "linear" },
+                bottom: { duration: 0.05, ease: "linear" },
                 scale: { duration: 0.3 },
                 opacity: { duration: 0.3 },
               }}
