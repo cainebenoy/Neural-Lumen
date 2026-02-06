@@ -1,9 +1,15 @@
 'use client';
 
 import { useSimulationStore } from '@/lib/store';
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
-import L from 'leaflet';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
+
+// Dynamically import Leaflet components to avoid SSR issues
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const CircleMarker = dynamic(() => import('react-leaflet').then(mod => mod.CircleMarker), { ssr: false });
+const Tooltip = dynamic(() => import('react-leaflet').then(mod => mod.Tooltip), { ssr: false });
 
 /**
  * GeoMap Component - Geospatial Visualization
@@ -12,9 +18,23 @@ import 'leaflet/dist/leaflet.css';
  */
 export const GeoMap = () => {
   const { poles } = useSimulationStore();
+  const [mounted, setMounted] = useState(false);
 
   // Map center: NH-48, Delhi-Gurgaon
   const mapCenter: [number, number] = [28.5273, 77.0688];
+
+  // Wait for client-side mounting to avoid hydration issues with Leaflet
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="w-full h-full bg-slate-950 rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
+        <div className="text-slate-400 font-mono">Loading map...</div>
+      </div>
+    );
+  }
   
   /**
    * Calculate GPS coordinates for each pole
