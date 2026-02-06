@@ -2,14 +2,15 @@
 
 import { useSimulationStore } from '@/lib/store';
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 
-// Dynamically import Leaflet components to avoid SSR issues
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
-const CircleMarker = dynamic(() => import('react-leaflet').then(mod => mod.CircleMarker), { ssr: false });
-const Tooltip = dynamic(() => import('react-leaflet').then(mod => mod.Tooltip), { ssr: false });
+// Use dynamic import with properly typed components
+const MapComponentWrapper = dynamic(
+  () => import('./MapComponentWrapper'),
+  { ssr: false }
+);
+
+import dynamic from 'next/dynamic';
 
 /**
  * GeoMap Component - Geospatial Visualization
@@ -88,56 +89,13 @@ export const GeoMap = () => {
   };
 
   return (
-    <div className="w-full h-full bg-slate-950 rounded-lg overflow-hidden shadow-2xl">
-      <MapContainer
-        center={mapCenter}
-        zoom={14}
-        style={{ height: '100%', width: '100%' }}
-        className="z-10"
-      >
-        {/* CartoDB Dark Matter tile layer - cyberpunk aesthetic */}
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          maxZoom={19}
-        />
-
-        {/* Render poles as interactive markers */}
-        {poles.map((pole, index) => {
-          const coords = getPoleCoordinates(index);
-          const color = getPoleColor(pole.mode);
-          const radius = getMarkerRadius(pole.brightness);
-          const power = formatPower(pole.brightness);
-
-          return (
-            <CircleMarker
-              key={pole.id}
-              center={coords}
-              radius={radius}
-              fillColor={color}
-              color={color}
-              weight={2}
-              opacity={0.8}
-              fillOpacity={0.6}
-              className="transition-all duration-300 hover:opacity-100 hover:fill-opacity-80 cursor-pointer"
-            >
-              <Tooltip sticky>
-                <div className="flex flex-col gap-1 p-1">
-                  <span className="font-mono text-xs font-bold">
-                    Pole #{pole.id}
-                  </span>
-                  <span className="font-mono text-xs">
-                    Power: {power}W
-                  </span>
-                  <span className="font-mono text-[10px] text-slate-400">
-                    {pole.mode.replace(/_/g, ' ')}
-                  </span>
-                </div>
-              </Tooltip>
-            </CircleMarker>
-          );
-        })}
-      </MapContainer>
-    </div>
+    <MapComponentWrapper
+      mapCenter={mapCenter}
+      poles={poles}
+      getPoleCoordinates={getPoleCoordinates}
+      getPoleColor={getPoleColor}
+      getMarkerRadius={getMarkerRadius}
+      formatPower={formatPower}
+    />
   );
 };

@@ -88,16 +88,19 @@ export const Highway = () => {
           return (
             <motion.div
               key={vehicle.id}
-              layout
               className={`absolute w-4 h-2 rounded-sm ${laneColor} border border-white/30 pointer-events-auto`}
-              style={{
+              animate={{
                 left: `${vehicle.x_pos}%`,
                 bottom: `${bottomOffset}%`,
               }}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              initial={{ left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }}
               exit={{ scale: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ 
+                left: { duration: 1, ease: "linear" },
+                bottom: { duration: 1, ease: "linear" },
+                scale: { duration: 0.3 },
+                opacity: { duration: 0.3 },
+              }}
             >
               {/* Headlight glow */}
               <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-yellow-300 rounded-full blur-sm" />

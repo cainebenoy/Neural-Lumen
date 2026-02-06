@@ -229,17 +229,17 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
 
     // RADAR DETECTION LOGIC
-    // Each pole covers 5% of the highway (20 poles = 100%)
+    // Each pole covers ~5% of the highway (20 poles = 100%)
     const updatedPoles = state.poles.map((pole, index) => {
       // Don't override crash or warning states
       if (pole.status === 'CRASH' || pole.status === 'WARNING') return pole;
 
       const polePosition = (index / 19) * 100; // 0% to 100%
-      const detectionRange = 10; // ±10% detection zone
+      const detectionRange = 15; // ±15% detection zone (20% total window per pole)
 
       // Check if any vehicle is near this pole
       const vehicleDetected = updatedVehicles.some(
-        vehicle => Math.abs(vehicle.x_pos - polePosition) < detectionRange
+        vehicle => Math.abs(vehicle.x_pos - polePosition) <= detectionRange
       );
 
       // PREDICTIVE LIGHTING: Boost brightness when vehicle detected
@@ -258,7 +258,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       return {
         ...pole,
         brightness: pole.brightness > standardBrightness 
-          ? Math.max(standardBrightness, pole.brightness - 10) // Gradual fade
+          ? Math.max(standardBrightness, pole.brightness - 15) // Faster fade (was 10)
           : standardBrightness,
       };
     });

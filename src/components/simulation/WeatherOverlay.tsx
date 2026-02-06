@@ -83,11 +83,11 @@ export const WeatherOverlay = () => {
         if (env.weather === 'RAIN') {
           // Draw rain (diagonal lines)
           ctx.strokeStyle = particle.color;
-          ctx.lineWidth = particle.width;
+          ctx.lineWidth = particle.width || 1;
           ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(particle.x, particle.y);
-          ctx.lineTo(particle.x + 5, particle.y + particle.length);
+          ctx.lineTo(particle.x + 5, particle.y + (particle.length || 10));
           ctx.stroke();
 
           // Update position
@@ -96,23 +96,23 @@ export const WeatherOverlay = () => {
 
           // Respawn if off-screen
           if (particle.y > canvas.height) {
-            particle.y = -particle.length;
+            particle.y = -(particle.length || 10);
             particle.x = Math.random() * canvas.width;
           }
         } else if (env.weather === 'SNOW') {
           // Draw snow (circles)
           ctx.fillStyle = particle.color;
           ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+          ctx.arc(particle.x, particle.y, particle.radius || 2, 0, Math.PI * 2);
           ctx.fill();
 
           // Update position
           particle.y += particle.speed;
-          particle.x += particle.drift;
+          particle.x += (particle.drift || 0);
 
           // Respawn if off-screen
           if (particle.y > canvas.height) {
-            particle.y = -particle.radius;
+            particle.y = -(particle.radius || 2);
             particle.x = Math.random() * canvas.width;
           }
         }

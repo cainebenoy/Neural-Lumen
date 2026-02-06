@@ -26,16 +26,17 @@ export const Pole = ({ data }: { data: PoleType }) => {
     const brightnessScale = data.brightness / 100;
     
     if (data.status === 'CRASH') {
-      return `bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,${0.9 * brightnessScale})_0%,rgba(239,68,68,${0.5 * brightnessScale})_40%,transparent_70%)] opacity-100`;
+      return `bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,${Math.min(1, 1.2 * brightnessScale)})_0%,rgba(239,68,68,${0.6 * brightnessScale})_35%,transparent_65%)] opacity-100`;
     }
     if (data.mode === 'FOG_AMBER') {
-      return `bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,${0.8 * brightnessScale})_0%,rgba(245,158,11,${0.4 * brightnessScale})_50%,transparent_75%)] opacity-100`;
+      return `bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,${Math.min(1, 1.0 * brightnessScale)})_0%,rgba(245,158,11,${0.5 * brightnessScale})_45%,transparent_70%)] opacity-100`;
     }
     if (data.mode === 'ECO_DIM') {
-      return `bg-[radial-gradient(ellipse_at_center,rgba(224,242,254,${0.4 * brightnessScale})_0%,rgba(224,242,254,${0.2 * brightnessScale})_50%,transparent_70%)] opacity-80`;
+      return `bg-[radial-gradient(ellipse_at_center,rgba(224,242,254,${0.5 * brightnessScale})_0%,rgba(224,242,254,${0.25 * brightnessScale})_50%,transparent_70%)] opacity-80`;
     }
     
-    return `bg-[radial-gradient(ellipse_at_center,rgba(224,242,254,${0.7 * brightnessScale})_0%,rgba(224,242,254,${0.3 * brightnessScale})_45%,transparent_70%)] opacity-90`;
+    // STANDARD MODE: Much more dramatic glow increase with brightness (for vehicle detection visibility)
+    return `bg-[radial-gradient(ellipse_at_center,rgba(34,211,238,${Math.min(1, 0.9 * brightnessScale)})_0%,rgba(34,211,238,${0.45 * brightnessScale})_40%,transparent_65%)] opacity-100`;
   };
 
   return (
