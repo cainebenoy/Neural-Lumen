@@ -6,7 +6,7 @@ import { Highway } from '@/components/simulation/Highway';
 import { GeoMap } from '@/components/simulation/GeoMap';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { useSimulationStore } from '@/lib/store';
-import { Activity, Map, Grid3x3, Globe } from 'lucide-react';
+import { Activity, Map, Grid3x3, Globe, Wifi, WifiOff, Gauge } from 'lucide-react';
 
 /**
  * Neural-Lumen Main Page
@@ -15,6 +15,8 @@ import { Activity, Map, Grid3x3, Globe } from 'lucide-react';
 export default function Home() {
   // Use selector to avoid re-renders on unrelated state changes
   const metrics = useSimulationStore((state) => state.metrics);
+  const poles = useSimulationStore((state) => state.poles);
+  const gridFailure = useSimulationStore((state) => state.gridFailure);
   const tick = useSimulationStore((state) => state.tick);
   const [viewMode, setViewMode] = useState<'simulation' | 'geo'>('simulation');
 
@@ -86,16 +88,16 @@ export default function Home() {
         </div>
 
         {/* HUD: Digital LCD Readout Metrics */}
-        <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="mt-6 grid grid-cols-4 gap-4">
           
           {/* Power Draw */}
           <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)]">
             <div className="text-[9px] tracking-[0.3em] text-slate-500 uppercase font-bold mb-2 font-mono">
               Power Draw
             </div>
-            <div className="font-mono text-4xl text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)] tabular-nums">
+            <div className="font-mono text-3xl text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)] tabular-nums">
               {metrics.powerDraw.toFixed(2)} 
-              <span className="text-lg text-slate-500 ml-2">kW</span>
+              <span className="text-sm text-slate-500 ml-1">kW</span>
             </div>
             <div className="text-xs text-slate-600 mt-2 font-mono">
               Baseline: 3.00 kW
@@ -107,11 +109,54 @@ export default function Home() {
             <div className="text-[9px] tracking-[0.3em] text-slate-500 uppercase font-bold mb-2 font-mono">
               Carbon Credits
             </div>
-            <div className="font-mono text-4xl text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)] tabular-nums">
+            <div className="font-mono text-3xl text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)] tabular-nums">
               {metrics.carbonCredits.toFixed(4)}
             </div>
             <div className="text-xs text-slate-600 mt-2 font-mono">
               Real-time accumulation
+            </div>
+          </div>
+
+          {/* Nodes Active - System Health */}
+          <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)]">
+            <div className="text-[9px] tracking-[0.3em] text-slate-500 uppercase font-bold mb-2 font-mono">
+              Nodes Active
+            </div>
+            <div className="font-mono text-3xl tabular-nums flex items-center gap-2">
+              <span className={poles.filter(p => p.status === 'ACTIVE').length === 20 ? 'text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)]' : 'text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)]'}>
+                {poles.filter(p => p.status === 'ACTIVE').length}
+              </span>
+              <span className="text-sm text-slate-600">/20</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              {gridFailure 
+                ? <><WifiOff size={10} className="text-orange-400" /><span className="text-xs text-orange-400 font-mono">BATTERY BACKUP</span></>
+                : <><Wifi size={10} className="text-emerald-500" /><span className="text-xs text-emerald-500 font-mono">Grid Online</span></>
+              }
+            </div>
+          </div>
+
+          {/* Uptime */}
+          <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)]">
+            <div className="text-[9px] tracking-[0.3em] text-slate-500 uppercase font-bold mb-2 font-mono">
+              System Uptime
+            </div>
+            <div className="font-mono text-3xl tabular-nums">
+              <span className={(() => {
+                const pct = (poles.filter(p => p.status === 'ACTIVE').length / 20) * 100;
+                if (pct === 100) return 'text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)]';
+                if (pct >= 70) return 'text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)]';
+                return 'text-red-400 drop-shadow-[0_0_16px_rgba(239,68,68,0.6)]';
+              })()}>
+                {((poles.filter(p => p.status === 'ACTIVE').length / 20) * 100).toFixed(0)}
+              </span>
+              <span className="text-sm text-slate-500 ml-1">%</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <Gauge size={10} className="text-slate-500" />
+              <span className="text-xs text-slate-600 font-mono">
+                {poles.filter(p => p.status === 'CRASH').length} crashed, {poles.filter(p => p.status === 'WARNING').length} warning
+              </span>
             </div>
           </div>
 
