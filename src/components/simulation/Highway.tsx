@@ -2,7 +2,6 @@ import { useSimulationStore } from '@/lib/store';
 import { Pole } from './Pole';
 import { WeatherOverlay } from './WeatherOverlay';
 import { motion } from 'framer-motion';
-import { useEffect, useCallback } from 'react';
 
 /**
  * Highway Component - The Viewport
@@ -12,21 +11,7 @@ export const Highway = () => {
   // Use individual selectors to avoid unnecessary re-renders on every state change
   const poles = useSimulationStore((state) => state.poles);
   const vehicles = useSimulationStore((state) => state.vehicles);
-  const spawnVehicle = useSimulationStore((state) => state.spawnVehicle);
-
-  // Memoize spawn function to prevent interval reset on every render
-  const handleSpawn = useCallback(() => {
-    spawnVehicle();
-  }, [spawnVehicle]);
-
-  // Auto-spawn vehicles every 3-5 seconds for continuous traffic
-  useEffect(() => {
-    const spawnInterval = setInterval(() => {
-      handleSpawn();
-    }, 3000 + Math.random() * 2000);
-
-    return () => clearInterval(spawnInterval);
-  }, [handleSpawn]);
+  const env = useSimulationStore((state) => state.env);
 
   return (
     <div className="relative w-full max-w-6xl h-[400px] bg-black border-8 border-slate-800 rounded-lg overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8),inset_0_4px_8px_rgba(255,255,255,0.05)]">
@@ -43,26 +28,8 @@ export const Highway = () => {
       {/* The Road Surface (Dark Asphalt) */}
       <div className="absolute bottom-0 w-full h-40 bg-slate-950 border-t-4 border-slate-700/50">
         
-        {/* Asphalt Texture Pattern */}
-        <div 
-          className="absolute inset-0 opacity-30" 
-          style={{
-            backgroundImage: `repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 2px,
-              rgba(0,0,0,0.3) 2px,
-              rgba(0,0,0,0.3) 4px
-            ),
-            repeating-linear-gradient(
-              0deg,
-              transparent,
-              transparent 2px,
-              rgba(0,0,0,0.3) 2px,
-              rgba(0,0,0,0.3) 4px
-            )`
-          }}
-        />
+        {/* Asphalt Texture Pattern - using utility class instead of inline styles */}
+        <div className="absolute inset-0 opacity-30 bg-asphalt-pattern" />
         
         {/* Dashed Lane Markers (Center) */}
         <div className="absolute top-1/2 left-0 right-0 h-1 flex justify-around items-center -translate-y-1/2">
@@ -83,23 +50,29 @@ export const Highway = () => {
         ))}
       </div>
 
-      {/* KINETIC TRAFFIC - Autonomous Vehicles */}
+      {/* KINETIC TRAFFIC - Autonomous Vehicles (Cars & Trucks) */}
       <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none">
         {vehicles.map((vehicle) => {
           // Lane positioning: Lane 1 (35%) vs Lane 2 (55%)
           const bottomOffset = vehicle.lane === 1 ? 35 : 55;
-          // Lane color: Cyan (Lane 1) or Rose (Lane 2)
-          const laneColor = vehicle.lane === 1 
-            ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]' 
-            : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]';
+          const isTruck = vehicle.type === 'truck';
+
+          // Truck: amber/orange, wider | Car: cyan/rose by lane, smaller
+          const vehicleClasses = isTruck
+            ? 'w-7 h-3 bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] rounded'
+            : vehicle.lane === 1
+              ? 'w-4 h-2 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] rounded-sm'
+              : 'w-4 h-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] rounded-sm';
           
           return (
             <motion.div
               key={vehicle.id}
-              className={`absolute w-4 h-2 rounded-sm ${laneColor} border border-white/30 pointer-events-auto`}
+              className={`absolute ${vehicleClasses} border border-white/30 pointer-events-auto`}
               animate={{
                 left: `${vehicle.x_pos}%`,
                 bottom: `${bottomOffset}%`,
+                scale: 1,
+                opacity: 1,
               }}
               initial={{ left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }}
               exit={{ scale: 0, opacity: 0 }}
@@ -111,8 +84,13 @@ export const Highway = () => {
               }}
             >
               {/* Headlight glow */}
-              <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-yellow-300 rounded-full blur-sm" />
+              <div className={`absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full blur-sm ${isTruck ? 'bg-amber-200' : 'bg-yellow-300'}`} />
               
+              {/* Truck: extra rear marker lights */}
+              {isTruck && (
+                <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-red-500 rounded-full blur-sm" />
+              )}
+
               {/* Speed trail effect */}
               {vehicle.speed > 80 && (
                 <div className="absolute -right-3 top-0 bottom-0 w-2 bg-gradient-to-r from-current to-transparent opacity-60" />
@@ -122,8 +100,8 @@ export const Highway = () => {
         })}
       </div>
 
-      {/* FOG LAYER - Active when any pole is in FOG_AMBER mode */}
-      {poles[0]?.mode === 'FOG_AMBER' && (
+      {/* FOG LAYER - Active when fog mode is enabled (manual or weather-triggered) */}
+      {env.fog && (
         <div className="absolute inset-0 z-40 pointer-events-none bg-slate-500/20 backdrop-blur-sm" />
       )}
 
