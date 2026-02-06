@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-[#0a0a0a] text-slate-100 font-sans antialiased;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
 /* Custom Scrollbar for the Industrial Look */
 ::-webkit-scrollbar {
   width: 8px;
@@ -22,6 +34,13 @@
   background-image: radial-gradient(circle, rgba(100, 100, 100, 0.3) 1px, transparent 1px);
   background-size: 100px 100px;
   background-repeat: repeat;
+}
+
+/* Industrial Perforated Metal Background */
+.chassis-bg {
+  background-color: #141517;
+  background-image: radial-gradient(#2c2e33 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
 /* Slider Styling for Firefox */

@@ -18,7 +18,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body 
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans bg-[#141517] text-slate-100 overflow-hidden bg-[radial-gradient(#2c2e33_1px,transparent_1px)] [background-size:18px_18px]`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+        style={{
+          fontFamily: 'var(--font-inter), system-ui, sans-serif',
+          margin: 0,
+          padding: 0,
+        }}
       >
         {children}
       </body>
