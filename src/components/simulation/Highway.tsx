@@ -78,45 +78,34 @@ export const Highway = () => {
       {/* KINETIC TRAFFIC - Autonomous Vehicles */}
       <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none">
         {vehicles.map((vehicle) => {
-          // Calculate position: 0% left to 100% right
-          const leftPosition = vehicle.x_pos;
-          // Lane offset: lane 1 = 35% from bottom, lane 2 = 55%
-          const laneOffset = vehicle.lane === 1 ? 35 : 55;
+          // Lane positioning: Lane 1 (35%) vs Lane 2 (55%)
+          const bottomOffset = vehicle.lane === 1 ? 35 : 55;
+          // Lane color: Cyan (Lane 1) or Rose (Lane 2)
+          const laneColor = vehicle.lane === 1 
+            ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]' 
+            : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]';
           
           return (
             <motion.div
               key={vehicle.id}
-              className="absolute"
+              layout
+              className={`absolute w-4 h-2 rounded-sm ${laneColor} border border-white/30 pointer-events-auto`}
               style={{
-                left: `${leftPosition}%`,
-                bottom: `${laneOffset}%`,
+                left: `${vehicle.x_pos}%`,
+                bottom: `${bottomOffset}%`,
               }}
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              {/* Vehicle Body - Cyberpunk Car */}
-              <div className="relative">
-                {/* Car Shadow */}
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-2 bg-black/40 blur-sm rounded-full" />
-                
-                {/* Car Main Body */}
-                <div className="relative w-6 h-4 bg-gradient-to-b from-cyan-400 to-cyan-600 rounded-sm shadow-lg border border-cyan-700">
-                  {/* Windshield */}
-                  <div className="absolute top-0 left-1 right-1 h-1.5 bg-cyan-200/30 rounded-t-sm" />
-                  
-                  {/* Headlights */}
-                  <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-yellow-300 rounded-full shadow-[0_0_4px_#fde047]" />
-                  
-                  {/* Glow Effect */}
-                  <div className="absolute inset-0 bg-cyan-400/20 blur-sm rounded-sm" />
-                </div>
-
-                {/* Speed Indicator (faster = more trail) */}
-                {vehicle.speed > 90 && (
-                  <div className="absolute right-full top-1/2 -translate-y-1/2 w-4 h-px bg-gradient-to-r from-transparent to-cyan-400/50" />
-                )}
-              </div>
+              {/* Headlight glow */}
+              <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-yellow-300 rounded-full blur-sm" />
+              
+              {/* Speed trail effect */}
+              {vehicle.speed > 80 && (
+                <div className="absolute -right-3 top-0 bottom-0 w-2 bg-gradient-to-r from-current to-transparent opacity-60" />
+              )}
             </motion.div>
           );
         })}
