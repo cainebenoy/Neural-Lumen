@@ -1,5 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { Pole } from './Pole';
+import { WeatherOverlay } from './WeatherOverlay';
 import { motion } from 'framer-motion';
 import { useEffect } from 'react';
 
@@ -115,6 +116,9 @@ export const Highway = () => {
       {poles[0]?.mode === 'FOG_AMBER' && (
         <div className="absolute inset-0 z-40 pointer-events-none bg-slate-500/20 backdrop-blur-sm" />
       )}
+
+      {/* WEATHER OVERLAY - Rain or Snow particle effects */}
+      <WeatherOverlay />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 
 /**
@@ -8,7 +8,7 @@ import { PowerGraph } from './PowerGraph';
  * Skeuomorphic operator console for simulation control
  */
 export const Sidebar = () => {
-  const { env, vehicles, toggleFog, setWind, setTime, triggerCrash, spawnVehicle } = useSimulationStore();
+  const { env, vehicles, toggleFog, setWind, setTime, setWeather, triggerCrash, spawnVehicle } = useSimulationStore();
 
   return (
     <div className="w-80 h-full bg-[#1e1f23] border-l-4 border-slate-700 flex flex-col shadow-[inset_4px_0_12px_rgba(0,0,0,0.6)]">
@@ -76,6 +76,51 @@ export const Sidebar = () => {
                 onChange={(e) => setWind(Number(e.target.value))}
                 className="w-full h-2 bg-slate-950 rounded-full appearance-none cursor-pointer border border-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-emerald-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-emerald-500 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
               />
+            </div>
+
+            {/* Weather Control */}
+            <div className="space-y-2">
+              <label className="text-xs text-slate-300 font-mono font-bold">
+                WEATHER
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setWeather('CLEAR')}
+                  className={cn(
+                    "flex-1 py-2 px-2 rounded text-xs font-mono border-2 transition-all",
+                    env.weather === 'CLEAR'
+                      ? 'bg-blue-600/40 border-blue-500 text-blue-400'
+                      : 'bg-slate-800/50 border-slate-600 text-slate-400 hover:border-slate-500'
+                  )}
+                >
+                  <Cloud size={14} className="mx-auto mb-1" />
+                  Clear
+                </button>
+                <button
+                  onClick={() => setWeather('RAIN')}
+                  className={cn(
+                    "flex-1 py-2 px-2 rounded text-xs font-mono border-2 transition-all",
+                    env.weather === 'RAIN'
+                      ? 'bg-cyan-600/40 border-cyan-500 text-cyan-400'
+                      : 'bg-slate-800/50 border-slate-600 text-slate-400 hover:border-slate-500'
+                  )}
+                >
+                  <CloudFog size={14} className="mx-auto mb-1" />
+                  Rain
+                </button>
+                <button
+                  onClick={() => setWeather('SNOW')}
+                  className={cn(
+                    "flex-1 py-2 px-2 rounded text-xs font-mono border-2 transition-all",
+                    env.weather === 'SNOW'
+                      ? 'bg-blue-300/40 border-blue-300 text-blue-200'
+                      : 'bg-slate-800/50 border-slate-600 text-slate-400 hover:border-slate-500'
+                  )}
+                >
+                  <CloudSnow size={14} className="mx-auto mb-1" />
+                  Snow
+                </button>
+              </div>
             </div>
           </div>
         </div>

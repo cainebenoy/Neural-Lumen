@@ -8,6 +8,7 @@ import { create } from 'zustand';
 // TypeScript Interfaces
 export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE';
 export type PoleStatus = 'ACTIVE' | 'CRASH' | 'WARNING';
+export type WeatherType = 'CLEAR' | 'RAIN' | 'SNOW';
 
 export interface Pole {
   id: number;
@@ -36,6 +37,7 @@ interface SimulationState {
     fog: boolean;
     windSpeed: number; // km/h
     time: number; // 24-hour format (0-2400)
+    weather: WeatherType; // CLEAR, RAIN, or SNOW
   };
   metrics: {
     powerDraw: number; // kW
@@ -47,6 +49,7 @@ interface SimulationState {
   triggerCrash: (id: number) => void;
   setWind: (speed: number) => void;
   setTime: (time: number) => void;
+  setWeather: (weather: WeatherType) => void;
   tick: () => void;
   reset: () => void;
   spawnVehicle: () => void;
@@ -66,7 +69,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   // Initial State with 20 poles
   poles: generatePoles(20),
   vehicles: [], // Traffic simulation starts empty
-  env: { fog: false, windSpeed: 10, time: 2000 },
+  env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR' },
   metrics: { powerDraw: 2.4, carbonCredits: 0 },
   powerHistory: [], // Start with empty history
 
@@ -163,6 +166,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       poles: newPoles
     };
   }),
+
+  /**
+   * WEATHER CONTROL: Toggle between CLEAR, RAIN, and SNOW
+   * Demonstrates weather resilience of the lighting system
+   */
+  setWeather: (weather: WeatherType) => set((state) => ({
+    env: { ...state.env, weather }
+  })),
 
   /**
    * TICK: Simulation loop
@@ -284,7 +295,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   reset: () => set({
     poles: generatePoles(20),
     vehicles: [], // Clear traffic
-    env: { fog: false, windSpeed: 10, time: 2000 },
+    env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR' },
     metrics: { powerDraw: 2.4, carbonCredits: 0 },
     powerHistory: [], // Clear history on reset
   })
