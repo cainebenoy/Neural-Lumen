@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 
 /**
@@ -8,7 +8,7 @@ import { PowerGraph } from './PowerGraph';
  * Skeuomorphic operator console for simulation control
  */
 export const Sidebar = () => {
-  const { env, vehicles, toggleFog, setWind, setTime, setWeather, triggerCrash, spawnVehicle } = useSimulationStore();
+  const { env, vehicles, autoTraffic, gridFailure, toggleFog, setWind, setTime, setWeather, triggerCrash, spawnVehicle, spawnTrafficJam, toggleAutoTraffic, triggerGridFailure } = useSimulationStore();
 
   return (
     <div className="w-80 h-full bg-[#1e1f23] border-l-4 border-slate-700 flex flex-col shadow-[inset_4px_0_12px_rgba(0,0,0,0.6)]">
@@ -43,6 +43,8 @@ export const Sidebar = () => {
               </label>
               <button 
                 onClick={toggleFog}
+                title="Toggle Fog Mode"
+                aria-label="Toggle Fog Mode"
                 className={cn(
                   "w-12 h-6 rounded-full relative transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2",
                   env.fog 
@@ -72,6 +74,8 @@ export const Sidebar = () => {
                 type="range" 
                 min="0" 
                 max="30" 
+                aria-label="Wind speed control"
+                title="Adjust wind speed"
                 value={env.windSpeed}
                 onChange={(e) => setWind(Number(e.target.value))}
                 className="w-full h-2 bg-slate-950 rounded-full appearance-none cursor-pointer border border-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-emerald-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-emerald-500 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
@@ -144,12 +148,19 @@ export const Sidebar = () => {
               min="0" 
               max="2400" 
               step="100"
+              aria-label="Time of day control"
+              title="Adjust time of day"
               value={env.time}
               onChange={(e) => setTime(Number(e.target.value))}
               className="w-full h-2 bg-slate-950 rounded-full appearance-none cursor-pointer border border-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-cyan-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-cyan-500 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
             />
             <p className="text-[9px] text-slate-500 font-mono mt-1">
-              0100-0400 = ECO MODE (30% brightness)
+              {(() => {
+                const t = env.time;
+                if (t >= 600 && t <= 1800) return '0600-1800 = DAYTIME (lights OFF)';
+                if (t >= 100 && t <= 400) return '0100-0400 = ECO MODE (30%)';
+                return 'Night mode active';
+              })()}
             </p>
           </div>
         </div>
@@ -164,21 +175,68 @@ export const Sidebar = () => {
             {/* Vehicle Counter */}
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400 font-mono">Active Vehicles</span>
-              <span className="text-cyan-400 font-mono font-bold">{vehicles.length}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-cyan-400 font-mono text-[10px]">{vehicles.filter(v => v.type === 'car').length} cars</span>
+                <span className="text-amber-400 font-mono text-[10px]">{vehicles.filter(v => v.type === 'truck').length} trucks</span>
+              </div>
             </div>
 
-            {/* Spawn Button */}
-            <button 
-              onClick={spawnVehicle}
-              className="w-full h-14 bg-gradient-to-b from-cyan-900/40 to-cyan-950/60 border-2 border-cyan-800 text-cyan-400 font-bold rounded hover:from-cyan-800/50 hover:to-cyan-900/70 hover:border-cyan-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#164e63,0_6px_12px_rgba(0,0,0,0.6)]"
-            >
-              <Car size={18} className="drop-shadow-[0_0_6px_rgba(6,182,212,0.6)]" />
-              <span className="text-xs tracking-[0.2em]">SPAWN VEHICLE</span>
-            </button>
+            {/* Auto-Traffic Toggle */}
+            <div className="flex items-center justify-between">
+              <label className="text-slate-300 text-sm font-mono font-bold flex items-center gap-2">
+                <Car size={16} className="text-cyan-400" />
+                AUTO FLOW
+              </label>
+              <button 
+                onClick={toggleAutoTraffic}
+                title="Toggle Auto-Traffic"
+                aria-label="Toggle Auto-Traffic Mode"
+                className={cn(
+                  "w-12 h-6 rounded-full relative transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2",
+                  autoTraffic 
+                    ? "bg-cyan-600/30 border-cyan-500" 
+                    : "bg-slate-800 border-slate-600"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-0.5 w-4 h-4 rounded-full shadow-md transition-all duration-300",
+                  autoTraffic 
+                    ? "right-0.5 bg-cyan-500" 
+                    : "left-0.5 bg-slate-500"
+                )} />
+              </button>
+            </div>
+
+            {/* Spawn Buttons - Car & Truck */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => spawnVehicle('car')}
+                className="flex-1 h-14 bg-gradient-to-b from-cyan-900/40 to-cyan-950/60 border-2 border-cyan-800 text-cyan-400 font-bold rounded hover:from-cyan-800/50 hover:to-cyan-900/70 hover:border-cyan-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#164e63,0_6px_12px_rgba(0,0,0,0.6)]"
+              >
+                <Car size={16} className="drop-shadow-[0_0_6px_rgba(6,182,212,0.6)]" />
+                <span className="text-[10px] tracking-[0.15em]">SPAWN CAR</span>
+              </button>
+              <button 
+                onClick={() => spawnVehicle('truck')}
+                className="flex-1 h-14 bg-gradient-to-b from-amber-900/40 to-amber-950/60 border-2 border-amber-800 text-amber-400 font-bold rounded hover:from-amber-800/50 hover:to-amber-900/70 hover:border-amber-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#78350f,0_6px_12px_rgba(0,0,0,0.6)]"
+              >
+                <Truck size={16} className="drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                <span className="text-[10px] tracking-[0.15em]">SPAWN TRUCK</span>
+              </button>
+            </div>
 
             <p className="text-[9px] text-slate-600 font-mono text-center">
-              Auto-spawning every 3-5s
+              {autoTraffic ? 'Auto-traffic enabled (~3% spawn rate)' : 'Manual spawn mode'}
             </p>
+
+            {/* Traffic Jam Button */}
+            <button 
+              onClick={spawnTrafficJam}
+              className="w-full h-12 bg-gradient-to-b from-violet-900/40 to-violet-950/60 border-2 border-violet-800 text-violet-400 font-bold rounded hover:from-violet-800/50 hover:to-violet-900/70 hover:border-violet-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_4px_0_#4c1d95,0_6px_12px_rgba(0,0,0,0.6)]"
+            >
+              <TrafficCone size={16} className="drop-shadow-[0_0_6px_rgba(167,139,250,0.6)]" />
+              <span className="text-[10px] tracking-[0.15em]">SPAWN TRAFFIC JAM</span>
+            </button>
           </div>
         </div>
 
@@ -195,6 +253,20 @@ export const Sidebar = () => {
             <Truck size={20} className="drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
             <span className="text-xs tracking-[0.2em]">CRASH TEST</span>
             <span className="text-[9px] text-red-500/70 font-mono">POLE #18</span>
+          </button>
+
+          {/* Grid Failure */}
+          <button 
+            onClick={triggerGridFailure}
+            className={cn(
+              "w-full h-14 mt-3 border-2 font-bold rounded active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#78350f,0_6px_12px_rgba(0,0,0,0.6)]",
+              gridFailure
+                ? "bg-gradient-to-b from-orange-700/60 to-orange-950/70 border-orange-500 text-orange-300"
+                : "bg-gradient-to-b from-orange-900/40 to-orange-950/60 border-orange-800 text-orange-400 hover:from-orange-800/50 hover:to-orange-900/70 hover:border-orange-700"
+            )}
+          >
+            <Zap size={18} className="drop-shadow-[0_0_6px_rgba(251,146,60,0.6)]" />
+            <span className="text-[10px] tracking-[0.2em]">{gridFailure ? 'RESTORE GRID' : 'GRID FAILURE'}</span>
           </button>
         </div>
 

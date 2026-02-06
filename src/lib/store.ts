@@ -6,7 +6,7 @@ import { create } from 'zustand';
  */
 
 // TypeScript Interfaces
-export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE';
+export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY';
 export type PoleStatus = 'ACTIVE' | 'CRASH' | 'WARNING';
 export type WeatherType = 'CLEAR' | 'RAIN' | 'SNOW';
 
@@ -23,11 +23,14 @@ export interface PowerHistoryPoint {
   value: number;
 }
 
+export type VehicleType = 'car' | 'truck';
+
 export interface Vehicle {
   id: number;
   x_pos: number; // Position along highway (0-100%)
   speed: number; // km/h
   lane: number; // 1 or 2
+  type: VehicleType; // Car (light, fast) or Truck (heavy, slow)
 }
 
 interface SimulationState {
@@ -44,6 +47,8 @@ interface SimulationState {
     carbonCredits: number; // Accumulated credits
   };
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
+  autoTraffic: boolean; // Auto-spawn vehicles
+  gridFailure: boolean; // Grid failure mode (battery backup)
   // Actions
   toggleFog: () => void;
   triggerCrash: (id: number) => void;
@@ -52,7 +57,10 @@ interface SimulationState {
   setWeather: (weather: WeatherType) => void;
   tick: () => void;
   reset: () => void;
-  spawnVehicle: () => void;
+  spawnVehicle: (forceType?: VehicleType) => void;
+  spawnTrafficJam: () => void;
+  toggleAutoTraffic: () => void;
+  triggerGridFailure: () => void;
 }
 
 // Initialize 20 poles for the highway
@@ -61,7 +69,7 @@ const generatePoles = (count: number): Pole[] =>
     id: i,
     status: 'ACTIVE' as PoleStatus,
     mode: 'STANDARD' as PoleMode,
-    brightness: 80,
+    brightness: 40,
     windHarvest: 0,
   }));
 
@@ -72,93 +80,129 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR' },
   metrics: { powerDraw: 2.4, carbonCredits: 0 },
   powerHistory: [], // Start with empty history
+  autoTraffic: false, // Auto-spawn disabled by default
+  gridFailure: false, // Grid is operational
 
   /**
    * FOG MODE: Switches all poles to 'FOG_AMBER' mode
    * White (Standard) → Amber (Fog)
+   * Syncs with weather state — toggling fog off during RAIN/SNOW resets weather to CLEAR
    */
   toggleFog: () => set((state) => {
     const newFogState = !state.env.fog;
+    
+    // If turning fog off while weather requires it, reset weather to CLEAR
+    const newWeather = (!newFogState && (state.env.weather === 'RAIN' || state.env.weather === 'SNOW'))
+      ? 'CLEAR' as WeatherType
+      : state.env.weather;
+    
     return {
-      env: { ...state.env, fog: newFogState },
+      env: { ...state.env, fog: newFogState, weather: newWeather },
       poles: state.poles.map(p => {
         // Don't override crash or warning states
         if (p.status === 'CRASH' || p.status === 'WARNING') return p;
         
-        return {
-          ...p,
-          mode: newFogState ? 'FOG_AMBER' : 'STANDARD',
-          brightness: newFogState ? 100 : 80,
-        };
+        if (newFogState) {
+          return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
+        }
+        
+        // Turning fog off: respect time-of-day modes
+        const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
+        if (isDaytime) {
+          return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
+        }
+        const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
+        if (isEcoHours) {
+          return { ...p, mode: 'ECO_DIM' as PoleMode, brightness: 30 };
+        }
+        return { ...p, mode: 'STANDARD' as PoleMode, brightness: 40 };
       })
     };
   }),
 
   /**
    * CRASH MODE: Triggers emergency pulse on 5 upstream poles
-   * Sets target pole to 'CRASH' and poles (id-1 to id-5) to 'EMERGENCY_PULSE'
+   * Sets target pole to 'CRASH' with STAGGERED RIPPLE propagation
+   * PRD: Pole N-1 reacts in 150ms, N-2 in 300ms... N-5 in 750ms
    */
-  triggerCrash: (id: number) => set((state) => {
-    const newPoles = [...state.poles];
-    
-    // 1. Set the crashed pole
-    if (newPoles[id]) {
-      newPoles[id] = {
-        ...newPoles[id],
-        status: 'CRASH',
-        brightness: 0,
-      };
-    }
-    
-    // 2. Trigger pulse warning on 5 upstream poles (id-1 to id-5)
-    for (let i = 1; i <= 5; i++) {
-      const upstreamIndex = id - i;
-      if (upstreamIndex >= 0 && newPoles[upstreamIndex]) {
-        // Only warn if not already crashed
-        if (newPoles[upstreamIndex].status !== 'CRASH') {
-          newPoles[upstreamIndex] = {
-            ...newPoles[upstreamIndex],
-            status: 'WARNING',
-            mode: 'EMERGENCY_PULSE',
-            brightness: 100, // Full brightness for safety
-          };
-        }
+  triggerCrash: (id: number) => {
+    // 1. Immediately set the crashed pole
+    set((state) => {
+      const newPoles = [...state.poles];
+      if (newPoles[id]) {
+        newPoles[id] = {
+          ...newPoles[id],
+          status: 'CRASH',
+          brightness: 0,
+        };
       }
+      return { poles: newPoles };
+    });
+
+    // 2. Staggered ripple: each upstream pole activates with increasing delay
+    for (let i = 1; i <= 5; i++) {
+      const delay = i * 150; // 150ms, 300ms, 450ms, 600ms, 750ms ripple
+      setTimeout(() => {
+        set((state) => {
+          const upstreamIndex = id - i;
+          if (upstreamIndex >= 0 && state.poles[upstreamIndex]) {
+            if (state.poles[upstreamIndex].status !== 'CRASH') {
+              const newPoles = [...state.poles];
+              newPoles[upstreamIndex] = {
+                ...newPoles[upstreamIndex],
+                status: 'WARNING',
+                mode: 'EMERGENCY_PULSE',
+                brightness: 100,
+              };
+              return { poles: newPoles };
+            }
+          }
+          return {};
+        });
+      }, delay);
     }
-    
-    return { poles: newPoles };
-  }),
+  },
 
   setWind: (speed: number) => set((state) => ({
     env: { ...state.env, windSpeed: speed }
   })),
 
   /**
-   * ECO MODE: Dims lights to 30% during 1 AM - 4 AM
-   * Time format: 0100-0400 (1 AM - 4 AM)
+   * TIME CONTROL with mode priority:
+   * CRASH/WARNING > GRID_FAILURE > FOG/WEATHER > DAYTIME_OFF > ECO > STANDARD
+   * 0600-1800 = DAYTIME (lights OFF)
+   * 0100-0400 = ECO MODE (30% brightness)
    */
   setTime: (time: number) => set((state) => {
+    const isDaytime = time >= 600 && time <= 1800;
     const isEcoHours = time >= 100 && time <= 400;
 
     const newPoles = state.poles.map(p => {
-      // Safety modes override eco mode
+      // Safety modes override everything
       if (p.status === 'CRASH' || p.status === 'WARNING') return p;
       
-      // ECO MODE: 1 AM - 4 AM
-      if (isEcoHours) {
-        return {
-          ...p,
-          mode: 'ECO_DIM' as PoleMode,
-          brightness: 30,
-        };
+      // Grid failure: battery backup mode
+      if (state.gridFailure) {
+        return { ...p, mode: 'BATTERY' as PoleMode, brightness: 25 };
       }
       
-      // Otherwise, respect fog mode or return to standard
-      return {
-        ...p,
-        mode: (state.env.fog ? 'FOG_AMBER' : 'STANDARD') as PoleMode,
-        brightness: state.env.fog ? 100 : 80,
-      };
+      // Weather/fog safety overrides time modes
+      if (state.env.fog) {
+        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
+      }
+      
+      // DAYTIME: 0600-1800 lights OFF
+      if (isDaytime) {
+        return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
+      }
+      
+      // ECO MODE: 1 AM - 4 AM (only when no weather hazard)
+      if (isEcoHours) {
+        return { ...p, mode: 'ECO_DIM' as PoleMode, brightness: 30 };
+      }
+      
+      // Standard night operation
+      return { ...p, mode: 'STANDARD' as PoleMode, brightness: 40 };
     });
 
     return { 
@@ -170,10 +214,41 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   /**
    * WEATHER CONTROL: Toggle between CLEAR, RAIN, and SNOW
    * Demonstrates weather resilience of the lighting system
+   * Auto-enables fog mode for RAIN and SNOW conditions
+   * CLEAR resets poles back to STANDARD mode
    */
-  setWeather: (weather: WeatherType) => set((state) => ({
-    env: { ...state.env, weather }
-  })),
+  setWeather: (weather: WeatherType) => set((state) => {
+    const needsFog = weather === 'RAIN' || weather === 'SNOW';
+    
+    const newPoles = state.poles.map(p => {
+      // Don't override crash or warning states
+      if (p.status === 'CRASH' || p.status === 'WARNING') return p;
+      
+      if (needsFog) {
+        // RAIN/SNOW: Amber fog mode at full brightness for safety
+        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
+      }
+      
+      // CLEAR: Reset poles based on time-of-day
+      if (state.gridFailure) {
+        return { ...p, mode: 'BATTERY' as PoleMode, brightness: 25 };
+      }
+      const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
+      if (isDaytime) {
+        return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
+      }
+      const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
+      if (isEcoHours) {
+        return { ...p, mode: 'ECO_DIM' as PoleMode, brightness: 30 };
+      }
+      return { ...p, mode: 'STANDARD' as PoleMode, brightness: 40 };
+    });
+
+    return {
+      env: { ...state.env, weather, fog: needsFog },
+      poles: newPoles
+    };
+  }),
 
   /**
    * TICK: Simulation loop
@@ -218,10 +293,25 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       updatedHistory.shift(); // Remove oldest entry
     }
 
+    // AUTO-TRAFFIC: Spawn vehicles automatically with ~3% chance per tick
+    // At 1 tick/sec, this creates roughly 1 vehicle every 30-35 seconds
+    let vehiclesToUpdate = state.vehicles;
+    if (state.autoTraffic && Math.random() < 0.03) {
+      const isTruck = Math.random() < 0.3; // 30% chance of truck
+      const newVehicle: Vehicle = {
+        id: Date.now() + Math.random(),
+        x_pos: 0,
+        speed: isTruck ? 40 + Math.random() * 30 : 80 + Math.random() * 40, // Trucks: 40-70, Cars: 80-120
+        lane: isTruck ? 1 : (Math.random() > 0.5 ? 1 : 2), // Trucks prefer lane 1 (slow lane)
+        type: isTruck ? 'truck' : 'car',
+      };
+      vehiclesToUpdate = [...state.vehicles, newVehicle];
+    }
+
     // VEHICLE PHYSICS ENGINE
     // Move vehicles forward based on speed (assuming 1 second tick)
     // Highway is 2km = 100% width, so speed % = (speed_km/h / 3600s) / 2km * 100 = speed / 72
-    const updatedVehicles = state.vehicles
+    const updatedVehicles = vehiclesToUpdate
       .map(vehicle => ({
         ...vehicle,
         x_pos: vehicle.x_pos + (vehicle.speed / 72), // Convert km/h to % per second (2km highway)
@@ -231,8 +321,36 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     // RADAR DETECTION LOGIC
     // Each pole covers ~5% of the highway (20 poles = 100%)
     const updatedPoles = state.poles.map((pole, index) => {
-      // Don't override crash or warning states
-      if (pole.status === 'CRASH' || pole.status === 'WARNING') return pole;
+      // Auto-recover CRASH/WARNING states (~8 second average recovery)
+      if (pole.status === 'CRASH' || pole.status === 'WARNING') {
+        if (Math.random() < 0.12) {
+          // Recover: determine correct mode based on current env
+          const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
+          const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
+          let recoveryMode: PoleMode = 'STANDARD';
+          let recoveryBrightness = 40;
+          if (state.gridFailure) {
+            recoveryMode = 'BATTERY';
+            recoveryBrightness = 25;
+          } else if (state.env.fog) {
+            recoveryMode = 'FOG_AMBER';
+            recoveryBrightness = 100;
+          } else if (isDaytime) {
+            recoveryMode = 'STANDARD';
+            recoveryBrightness = 0;
+          } else if (isEcoHours) {
+            recoveryMode = 'ECO_DIM';
+            recoveryBrightness = 30;
+          }
+          return {
+            ...pole,
+            status: 'ACTIVE' as PoleStatus,
+            mode: recoveryMode,
+            brightness: recoveryBrightness,
+          };
+        }
+        return pole;
+      }
 
       const polePosition = (index / 19) * 100; // 0% to 100%
       const detectionRange = 15; // ±15% detection zone (20% total window per pole)
@@ -251,9 +369,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       }
 
       // Fade back to standard brightness based on mode
-      let standardBrightness = 80;
+      let standardBrightness = 40;
       if (pole.mode === 'FOG_AMBER') standardBrightness = 100;
       if (pole.mode === 'ECO_DIM') standardBrightness = 30;
+      if (pole.mode === 'BATTERY') standardBrightness = 25;
+      
+      // Daytime: lights off (brightness 0) unless fog/grid override
+      const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
+      if (isDaytime && !state.env.fog && !state.gridFailure) standardBrightness = 0;
 
       return {
         ...pole,
@@ -280,17 +403,80 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   /**
    * SPAWN VEHICLE: Creates a new vehicle at the start of the highway
    */
-  spawnVehicle: () => set((state) => {
+  spawnVehicle: (forceType?: VehicleType) => set((state) => {
+    const isTruck = forceType === 'truck' || (!forceType && Math.random() < 0.3);
     const newVehicle: Vehicle = {
-      id: Date.now() + Math.random(), // Unique ID
-      x_pos: 0, // Start at beginning
-      speed: 60 + Math.random() * 60, // Random speed 60-120 km/h
-      lane: Math.random() > 0.5 ? 1 : 2, // Random lane
+      id: Date.now() + Math.random(),
+      x_pos: 0,
+      speed: isTruck ? 40 + Math.random() * 30 : 80 + Math.random() * 40, // Trucks: 40-70, Cars: 80-120
+      lane: isTruck ? 1 : (Math.random() > 0.5 ? 1 : 2),
+      type: isTruck ? 'truck' : 'car',
     };
 
     return {
       vehicles: [...state.vehicles, newVehicle],
     };
+  }),
+
+  /**
+   * SPAWN TRAFFIC JAM: Burst-spawn 6-8 vehicles close together
+   * Creates a cluster of slow-moving vehicles with trucks mixed in
+   * Shows the lighting grid illuminating in sequence as the jam passes
+   */
+  spawnTrafficJam: () => set((state) => {
+    const count = 6 + Math.floor(Math.random() * 3); // 6-8 vehicles
+    const jamVehicles: Vehicle[] = [];
+    for (let i = 0; i < count; i++) {
+      const isTruck = Math.random() < 0.4; // 40% trucks in a jam
+      jamVehicles.push({
+        id: Date.now() + Math.random() + i,
+        x_pos: i * 3, // Spaced 3% apart (tight cluster)
+        speed: isTruck ? 25 + Math.random() * 15 : 35 + Math.random() * 20, // Slow: 25-55 km/h
+        lane: Math.random() > 0.4 ? 1 : 2, // Spread across both lanes
+        type: isTruck ? 'truck' : 'car',
+      });
+    }
+    return { vehicles: [...state.vehicles, ...jamVehicles] };
+  }),
+
+  /**
+   * TOGGLE AUTO-TRAFFIC: Enable/disable automatic vehicle spawning
+   */
+  toggleAutoTraffic: () => set((state) => ({
+    autoTraffic: !state.autoTraffic
+  })),
+
+  /**
+   * GRID FAILURE: Simulates main power grid going offline
+   * All poles switch to battery backup (25% brightness, orange tint)
+   * Toggle on/off
+   */
+  triggerGridFailure: () => set((state) => {
+    const newGridState = !state.gridFailure;
+    
+    const newPoles = state.poles.map(p => {
+      if (p.status === 'CRASH' || p.status === 'WARNING') return p;
+      
+      if (newGridState) {
+        return { ...p, mode: 'BATTERY' as PoleMode, brightness: 25 };
+      }
+      
+      // Restore: determine correct mode
+      const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
+      const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
+      if (state.env.fog) {
+        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
+      }
+      if (isDaytime) {
+        return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
+      }
+      if (isEcoHours) {
+        return { ...p, mode: 'ECO_DIM' as PoleMode, brightness: 30 };
+      }
+      return { ...p, mode: 'STANDARD' as PoleMode, brightness: 40 };
+    });
+
+    return { gridFailure: newGridState, poles: newPoles };
   }),
 
   reset: () => set({
@@ -299,5 +485,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR' },
     metrics: { powerDraw: 2.4, carbonCredits: 0 },
     powerHistory: [], // Clear history on reset
+    autoTraffic: false, // Reset auto-traffic
+    gridFailure: false, // Reset grid
   })
 }));
