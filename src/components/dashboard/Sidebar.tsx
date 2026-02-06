@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 
 /**
@@ -8,7 +8,26 @@ import { PowerGraph } from './PowerGraph';
  * Skeuomorphic operator console for simulation control
  */
 export const Sidebar = () => {
-  const { env, vehicles, autoTraffic, gridFailure, toggleFog, setWind, setTime, setWeather, triggerCrash, spawnVehicle, spawnTrafficJam, toggleAutoTraffic, triggerGridFailure } = useSimulationStore();
+  const { 
+    env, 
+    vehicles, 
+    geoVehicles,
+    autoTraffic, 
+    autoGeoTraffic,
+    gridFailure, 
+    toggleFog, 
+    setWind, 
+    setTime, 
+    setWeather, 
+    triggerCrash, 
+    spawnVehicle, 
+    spawnTrafficJam, 
+    toggleAutoTraffic,
+    spawnGeoVehicle,
+    spawnGeoTrafficBurst,
+    toggleAutoGeoTraffic,
+    triggerGridFailure 
+  } = useSimulationStore();
 
   return (
     <div className="w-80 h-full bg-[#1e1f23] border-l-4 border-slate-700 flex flex-col shadow-[inset_4px_0_12px_rgba(0,0,0,0.6)]">
@@ -282,6 +301,74 @@ export const Sidebar = () => {
           </div>
         </div>
 
+        {/* MODULE 3.5: Geographic Traffic (Map View) */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-emerald-900/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_12px_rgba(16,185,129,0.1)]">
+          <div className="text-[10px] tracking-[0.2em] text-emerald-400 uppercase font-bold mb-4 pb-2 border-b border-emerald-900/50">
+            Geographic Traffic
+          </div>
+          
+          <div className="space-y-3">
+            {/* Vehicle Counter */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Vehicles on Map</span>
+              <div className="flex items-center gap-3">
+                <span className="text-cyan-400 font-mono text-[10px]">{geoVehicles.filter(v => v.type === 'car').length} cars</span>
+                <span className="text-amber-400 font-mono text-[10px]">{geoVehicles.filter(v => v.type === 'truck').length} trucks</span>
+              </div>
+            </div>
+
+            {/* Auto-Geo-Traffic Toggle */}
+            <div className="flex items-center justify-between">
+              <label className="text-slate-300 text-sm font-mono font-bold flex items-center gap-2">
+                <Globe size={16} className="text-emerald-400" />
+                AUTO FLOW
+              </label>
+              <button 
+                onClick={toggleAutoGeoTraffic}
+                title="Toggle Auto Geographic Traffic"
+                aria-label="Toggle Auto Geographic Traffic Mode"
+                className={cn(
+                  "w-12 h-6 rounded-full relative transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2",
+                  autoGeoTraffic 
+                    ? "bg-emerald-600/30 border-emerald-500" 
+                    : "bg-slate-800 border-slate-600"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-0.5 w-4 h-4 rounded-full shadow-md transition-all duration-300",
+                  autoGeoTraffic 
+                    ? "right-0.5 bg-emerald-500" 
+                    : "left-0.5 bg-slate-500"
+                )} />
+              </button>
+            </div>
+
+            {/* Spawn Buttons - Geo Vehicle */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => spawnGeoVehicle()}
+                className="flex-1 h-14 bg-gradient-to-b from-emerald-900/40 to-emerald-950/60 border-2 border-emerald-800 text-emerald-400 font-bold rounded hover:from-emerald-800/50 hover:to-emerald-900/70 hover:border-emerald-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#064e3b,0_6px_12px_rgba(0,0,0,0.6)]"
+              >
+                <MapPin size={16} className="drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                <span className="text-[10px] tracking-[0.15em]">SPAWN</span>
+              </button>
+            </div>
+
+            <p className="text-[9px] text-slate-600 font-mono text-center">
+              {autoGeoTraffic ? 'Auto-spawn enabled (~15% per tick)' : 'Manual spawn mode'}
+            </p>
+
+            {/* Traffic Burst Button */}
+            <button 
+              onClick={spawnGeoTrafficBurst}
+              className="w-full h-12 bg-gradient-to-b from-teal-900/40 to-teal-950/60 border-2 border-teal-800 text-teal-400 font-bold rounded hover:from-teal-800/50 hover:to-teal-900/70 hover:border-teal-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_4px_0_#134e4a,0_6px_12px_rgba(0,0,0,0.6)]"
+            >
+              <Globe size={16} className="drop-shadow-[0_0_6px_rgba(20,184,166,0.6)]" />
+              <span className="text-[10px] tracking-[0.15em]">TRAFFIC BURST</span>
+            </button>
+          </div>
+        </div>
+
         {/* MODULE 4: Hazard Testing */}
         <div className="bg-slate-900/50 p-4 rounded border-2 border-red-900/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_12px_rgba(220,38,38,0.1)]">
           <div className="text-[10px] tracking-[0.2em] text-red-400 uppercase font-bold mb-4 pb-2 border-b border-red-900/50">
@@ -289,12 +376,12 @@ export const Sidebar = () => {
           </div>
           
           <button 
-            onClick={() => triggerCrash(18)}
+            onClick={() => triggerCrash(1000)}
             className="w-full h-16 bg-gradient-to-b from-red-900/40 to-red-950/60 border-2 border-red-800 text-red-400 font-bold rounded hover:from-red-800/50 hover:to-red-900/70 hover:border-red-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#7f1d1d,0_6px_12px_rgba(0,0,0,0.6)]"
           >
             <Truck size={20} className="drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
             <span className="text-xs tracking-[0.2em]">CRASH TEST</span>
-            <span className="text-[9px] text-red-500/70 font-mono">POLE #18</span>
+            <span className="text-[9px] text-red-500/70 font-mono">POLE #1000</span>
           </button>
 
           {/* Grid Failure */}

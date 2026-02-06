@@ -4,15 +4,18 @@ import { useSimulationStore } from '@/lib/store';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
-import type { Pole } from '@/lib/store';
+import type { Pole, GeoVehicle } from '@/lib/store';
+import { HIGHWAY_ROUTES } from '@/lib/constants';
 
 interface MapComponentWrapperProps {
   mapCenter: [number, number];
   poles: Pole[];
+  geoVehicles: GeoVehicle[];
   getPoleCoordinates: (index: number) => [number, number];
-  getPoleColor: (mode: string) => string;
+  getPoleColor: (status: string, mode: string) => string;
   getMarkerRadius: (brightness: number) => number;
   formatPower: (brightness: number) => string;
+  highwayRoutes: typeof HIGHWAY_ROUTES;
 }
 
 // Use dynamic import with properly typed components
@@ -23,15 +26,20 @@ const MapComponentWrapper = dynamic<MapComponentWrapperProps>(
 
 /**
  * GeoMap Component - Geospatial Visualization
- * Plots poles on a real-world map of NH-48, Delhi-Gurgaon corridor
+ * Plots poles across India's major National Highway network
+ * Shows real-time lighting simulation distributed across the country
  * Uses CartoDB Dark Matter tiles for cyberpunk aesthetic
  */
 export const GeoMap = () => {
-  const { poles } = useSimulationStore();
+  const poles = useSimulationStore((state) => state.poles);
+  const geoVehicles = useSimulationStore((state) => state.geoVehicles);
   const [mounted, setMounted] = useState(false);
 
-  // Map center: NH-48, Delhi-Gurgaon
-  const mapCenter: [number, number] = [28.5273, 77.0688];
+  // Map center: Central India for full country view
+  const mapCenter: [number, number] = [23.5, 80.0];
+
+  // Distribute poles across highways (4 poles per route)
+  const polesPerRoute = Math.ceil(poles.length / HIGHWAY_ROUTES.length);
 
   // Wait for client-side mounting to avoid hydration issues with Leaflet
   useEffect(() => {
@@ -48,25 +56,46 @@ export const GeoMap = () => {
   
   /**
    * Calculate GPS coordinates for each pole
-   * Simulates a 2km stretch along the highway by offsetting latitude
-   * Each pole gets a progressively larger offset to space them geographically
+   * Distributes poles across India's highway network
+   * Each highway segment gets an equal share of poles
    */
   const getPoleCoordinates = (index: number): [number, number] => {
-    // Spread poles over ~2km (roughly 0.02 degrees latitude)
-    const latOffset = (index / poles.length) * 0.02;
-    // Slight longitude jitter for lane differentiation
-    const lngOffset = (index % 2 === 0 ? 0.003 : -0.003);
+    // Determine which route this pole belongs to
+    const routeIndex = Math.floor(index / polesPerRoute) % HIGHWAY_ROUTES.length;
+    const route = HIGHWAY_ROUTES[routeIndex];
     
-    return [
-      mapCenter[0] + latOffset,
-      mapCenter[1] + lngOffset,
-    ];
+    // Position along that specific route
+    const positionInRoute = index % polesPerRoute;
+    const segmentCount = route.path.length - 1;
+    
+    // Interpolate position along the route path
+    const progress = positionInRoute / Math.max(1, polesPerRoute - 1);
+    const segmentIndex = Math.floor(progress * segmentCount);
+    const segmentProgress = (progress * segmentCount) - segmentIndex;
+    
+    const startPoint = route.path[Math.min(segmentIndex, route.path.length - 1)];
+    const endPoint = route.path[Math.min(segmentIndex + 1, route.path.length - 1)];
+    
+    // Linear interpolation between waypoints
+    const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * segmentProgress;
+    const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * segmentProgress;
+    
+    // Add slight offset for lane differentiation
+    const laneOffset = (index % 2 === 0 ? 0.02 : -0.02);
+    
+    return [lat + laneOffset, lng + laneOffset * 0.5];
   };
 
   /**
-   * Determine marker color based on pole mode
+   * Determine marker color based on pole status and mode
+   * Status takes priority for crash/warning visualization
    */
-  const getPoleColor = (mode: string): string => {
+  const getPoleColor = (status: string, mode: string): string => {
+    // Status colors take priority
+    if (status === 'CRASH') return '#dc2626'; // Red for crash
+    if (status === 'WARNING') return '#f97316'; // Orange for warning
+    
+    // Then check mode
     switch (mode) {
       case 'EMERGENCY_PULSE':
         return '#ef4444'; // Red for emergency
@@ -85,7 +114,7 @@ export const GeoMap = () => {
    * Higher brightness = larger marker (more visible)
    */
   const getMarkerRadius = (brightness: number): number => {
-    return 4 + (brightness / 100) * 10; // Range: 4-14 pixels
+    return 1.5 + (brightness / 100) * 2.5; // Range: 1.5-4 pixels (adjusted for 2000 poles)
   };
 
   /**
@@ -101,10 +130,12 @@ export const GeoMap = () => {
     <MapComponentWrapper
       mapCenter={mapCenter}
       poles={poles}
+      geoVehicles={geoVehicles}
       getPoleCoordinates={getPoleCoordinates}
-      getPoleColor={getPoleColor}
+      getPoleColor={(status: string, mode: string) => getPoleColor(status, mode)}
       getMarkerRadius={getMarkerRadius}
       formatPower={formatPower}
+      highwayRoutes={HIGHWAY_ROUTES}
     />
   );
 };

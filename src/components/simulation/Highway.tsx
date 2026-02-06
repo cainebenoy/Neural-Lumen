@@ -44,8 +44,9 @@ export const Highway = () => {
       </div>
 
       {/* POLES - The Core Simulation Elements */}
+      {/* Show a sample of poles (every 100th pole for visualization) */}
       <div className="absolute bottom-40 left-0 right-0 h-32 px-6 flex justify-between items-end">
-        {poles.map((pole) => (
+        {poles.filter((_, index) => index % 100 === 0).map((pole) => (
           <Pole key={pole.id} data={pole} />
         ))}
       </div>
@@ -104,14 +105,14 @@ export const Highway = () => {
       {/* Opacity and blur scale with weather severity for realism */}
       {env.fog && (
         <div 
-          className="absolute inset-0 z-40 pointer-events-none"
+          className="absolute inset-0 z-15 pointer-events-none"
           style={{
             background: env.weather === 'SNOW'
-              ? 'linear-gradient(to bottom, rgba(200,210,225,0.35) 0%, rgba(180,195,210,0.25) 50%, rgba(160,175,195,0.15) 100%)'
+              ? 'linear-gradient(to bottom, rgba(200,210,225,0.32) 0%, rgba(180,195,210,0.22) 50%, rgba(160,175,195,0.12) 100%)'
               : env.weather === 'RAIN'
-              ? 'linear-gradient(to bottom, rgba(100,116,139,0.3) 0%, rgba(71,85,105,0.2) 50%, rgba(51,65,85,0.1) 100%)'
-              : 'linear-gradient(to bottom, rgba(148,163,184,0.25) 0%, rgba(100,116,139,0.15) 60%, transparent 100%)',
-            backdropFilter: env.weather === 'SNOW' ? 'blur(3px)' : env.weather === 'RAIN' ? 'blur(2px)' : 'blur(1.5px)',
+              ? 'linear-gradient(to bottom, rgba(100,116,139,0.26) 0%, rgba(71,85,105,0.18) 50%, rgba(51,65,85,0.08) 100%)'
+              : 'linear-gradient(to bottom, rgba(148,163,184,0.28) 0%, rgba(100,116,139,0.18) 60%, rgba(71,85,105,0.08) 100%)',
+            backdropFilter: env.weather === 'SNOW' ? 'blur(2.2px)' : env.weather === 'RAIN' ? 'blur(1.8px)' : 'blur(2px)',
             transition: 'all 1s ease-in-out',
           }}
         />

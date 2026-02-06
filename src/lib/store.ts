@@ -33,9 +33,20 @@ export interface Vehicle {
   type: VehicleType; // Car (light, fast) or Truck (heavy, slow)
 }
 
+// Geographic vehicle for map visualization
+export interface GeoVehicle {
+  id: number;
+  routeIndex: number; // Which highway route (0-4)
+  progress: number; // Position along route (0-1)
+  speed: number; // km/h
+  type: VehicleType;
+  lane: number; // 1 or 2 for offset
+}
+
 interface SimulationState {
   poles: Pole[];
-  vehicles: Vehicle[]; // Traffic physics simulation
+  vehicles: Vehicle[]; // Traffic physics simulation (2D highway view)
+  geoVehicles: GeoVehicle[]; // Geographic vehicles (map view)
   env: {
     fog: boolean;
     windSpeed: number; // km/h
@@ -48,7 +59,8 @@ interface SimulationState {
     carbonCredits: number; // Accumulated credits
   };
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
-  autoTraffic: boolean; // Auto-spawn vehicles
+  autoTraffic: boolean; // Auto-spawn vehicles (2D view)
+  autoGeoTraffic: boolean; // Auto-spawn vehicles on map
   gridFailure: boolean; // Grid failure mode (battery backup)
   _tickCount: number; // Internal tick counter for throttling (not displayed)
   // Actions
@@ -62,10 +74,13 @@ interface SimulationState {
   spawnVehicle: (forceType?: VehicleType) => void;
   spawnTrafficJam: () => void;
   toggleAutoTraffic: () => void;
+  spawnGeoVehicle: (routeIndex?: number, forceType?: VehicleType) => void;
+  spawnGeoTrafficBurst: () => void;
+  toggleAutoGeoTraffic: () => void;
   triggerGridFailure: () => void;
 }
 
-// Initialize 20 poles for the highway
+// Initialize poles for the highway network
 const generatePoles = (count: number): Pole[] => 
   Array.from({ length: count }, (_, i) => ({
     id: i,
@@ -120,13 +135,15 @@ const getWeatherSpeedMultiplier = (weather: WeatherType, fog: boolean): number =
 };
 
 export const useSimulationStore = create<SimulationState>((set, get) => ({
-  // Initial State with 20 poles
-  poles: generatePoles(20),
-  vehicles: [], // Traffic simulation starts empty
+  // Initial State with 2000 poles across India's highway network
+  poles: generatePoles(2000),
+  vehicles: [], // Traffic simulation starts empty (2D view)
+  geoVehicles: [], // Geographic vehicles (map view)
   env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-  metrics: { powerDraw: 2.4, carbonCredits: 0 },
+  metrics: { powerDraw: 24.0, carbonCredits: 0 },
   powerHistory: [], // Start with empty history
-  autoTraffic: false, // Auto-spawn disabled by default
+  autoTraffic: false, // Auto-spawn disabled by default (2D view)
+  autoGeoTraffic: true, // Auto-spawn enabled for map view by default
   gridFailure: false, // Grid is operational
   _tickCount: 0,
 
@@ -180,18 +197,18 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   /**
    * CRASH MODE: Triggers emergency pulse on 5 upstream poles
-   * Sets target pole to 'CRASH' with STAGGERED RIPPLE propagation
-   * PRD: Pole N-1 reacts in 150ms, N-2 in 300ms... N-5 in 750ms
+   * Sets target pole to 'CRASH' with red alert, then propagates WARNING to upstream poles
+   * Staggered ripple: Pole N-1 reacts in 150ms, N-2 in 300ms... N-5 in 750ms
    */
   triggerCrash: (id: number) => {
-    // 1. Immediately set the crashed pole
+    // 1. Immediately set the crashed pole to bright red
     set((state) => {
       const newPoles = [...state.poles];
       if (newPoles[id]) {
         newPoles[id] = {
           ...newPoles[id],
           status: 'CRASH',
-          brightness: 0,
+          brightness: 100, // Red glow at full brightness
         };
       }
       return { poles: newPoles };
@@ -334,8 +351,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       return acc + (p.brightness * WATTS_PER_PERCENT);
     }, 0);
     
-    // Baseline: Legacy system always 100% brightness on all 20 poles
-    const baselineWatts = 20 * 100 * WATTS_PER_PERCENT;
+    // Baseline: Legacy system always 100% brightness on all poles
+    const baselineWatts = state.poles.length * 100 * WATTS_PER_PERCENT;
     const savings = Math.max(0, baselineWatts - totalWatts);
     
     // Wind harvest calculation with realistic variance
@@ -381,7 +398,23 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       vehiclesToUpdate = [...state.vehicles, newVehicle];
     }
 
-    // VEHICLE PHYSICS ENGINE
+    // AUTO-GEO-TRAFFIC: Spawn vehicles on map routes (higher frequency for dense traffic)
+    let geoVehiclesToUpdate = state.geoVehicles;
+    if (state.autoGeoTraffic && Math.random() < 0.15) { // 15% chance = ~0.75 vehicles/sec = 45/min
+      const routeIndex = Math.floor(Math.random() * 5); // Random route (0-4)
+      const isTruck = Math.random() < 0.25; // 25% trucks
+      const newGeoVehicle: GeoVehicle = {
+        id: Date.now() + Math.random(),
+        routeIndex,
+        progress: 0,
+        speed: isTruck ? 60 + Math.random() * 40 : 80 + Math.random() * 60, // Trucks: 60-100, Cars: 80-140
+        type: isTruck ? 'truck' : 'car',
+        lane: Math.random() > 0.5 ? 1 : 2,
+      };
+      geoVehiclesToUpdate = [...state.geoVehicles, newGeoVehicle];
+    }
+
+    // VEHICLE PHYSICS ENGINE (2D Highway View)
     // Move vehicles forward based on speed (200ms tick = 1/5 second)
     // Highway is 2km = 100% width, so speed % per tick = speed / (72 * 5) = speed / 360
     // Weather caps effective speed for realism
@@ -395,6 +428,22 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         };
       })
       .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
+
+    // GEO VEHICLE PHYSICS ENGINE (Map View)
+    // Routes vary in length, so speed is normalized per route
+    // Average route: ~1500km, tick = 0.2s, progress increment = (km/h) / (1500 * 18000)
+    const updatedGeoVehicles = geoVehiclesToUpdate
+      .map(vehicle => {
+        const effectiveSpeed = Math.min(vehicle.speed, vehicle.speed * speedMultiplier);
+        // Progress: 0-1 over route length, speed in km/h converted to progress/tick
+        // Assume average 1500km route, 200ms tick: increment = speed / (1500 * 18000)
+        const progressIncrement = effectiveSpeed / 27000000; // Calibrated for visible movement
+        return {
+          ...vehicle,
+          progress: vehicle.progress + progressIncrement,
+        };
+      })
+      .filter(vehicle => vehicle.progress <= 1.05); // Remove vehicles that completed route
 
     // RADAR DETECTION LOGIC
     // Each pole covers ~5% of the highway (20 poles = 100%)
@@ -431,7 +480,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         return pole;
       }
 
-      const polePosition = (index / 19) * 100; // 0% to 100%
+      const polePosition = (index / (state.poles.length - 1)) * 100; // 0% to 100%
       const detectionRange = 15; // ±15% detection zone (20% total window per pole)
 
       // Check if any vehicle is near this pole
@@ -479,6 +528,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       })),
       powerHistory: updatedHistory,
       vehicles: updatedVehicles,
+      geoVehicles: updatedGeoVehicles,
       _tickCount: tickCount,
     };
   }),
@@ -523,10 +573,59 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   }),
 
   /**
-   * TOGGLE AUTO-TRAFFIC: Enable/disable automatic vehicle spawning
+   * TOGGLE AUTO-TRAFFIC: Enable/disable automatic vehicle spawning (2D view)
    */
   toggleAutoTraffic: () => set((state) => ({
     autoTraffic: !state.autoTraffic
+  })),
+
+  /**
+   * SPAWN GEO VEHICLE: Creates a new vehicle on a specific route (or random route)
+   */
+  spawnGeoVehicle: (routeIndex?: number, forceType?: VehicleType) => set((state) => {
+    const route = routeIndex !== undefined ? routeIndex : Math.floor(Math.random() * 5);
+    const isTruck = forceType === 'truck' || (!forceType && Math.random() < 0.25);
+    const newGeoVehicle: GeoVehicle = {
+      id: Date.now() + Math.random(),
+      routeIndex: route,
+      progress: 0,
+      speed: isTruck ? 60 + Math.random() * 40 : 80 + Math.random() * 60,
+      type: isTruck ? 'truck' : 'car',
+      lane: Math.random() > 0.5 ? 1 : 2,
+    };
+    return {
+      geoVehicles: [...state.geoVehicles, newGeoVehicle],
+    };
+  }),
+
+  /**
+   * SPAWN GEO TRAFFIC BURST: Creates multiple vehicles across all routes
+   */
+  spawnGeoTrafficBurst: () => set((state) => {
+    const burst: GeoVehicle[] = [];
+    // Spawn 3-5 vehicles per route (15-25 total vehicles)
+    for (let routeIdx = 0; routeIdx < 5; routeIdx++) {
+      const count = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < count; i++) {
+        const isTruck = Math.random() < 0.3;
+        burst.push({
+          id: Date.now() + Math.random() + routeIdx * 100 + i,
+          routeIndex: routeIdx,
+          progress: Math.random() * 0.3, // Spread along first 30% of route
+          speed: isTruck ? 60 + Math.random() * 40 : 80 + Math.random() * 60,
+          type: isTruck ? 'truck' : 'car',
+          lane: Math.random() > 0.5 ? 1 : 2,
+        });
+      }
+    }
+    return { geoVehicles: [...state.geoVehicles, ...burst] };
+  }),
+
+  /**
+   * TOGGLE AUTO-GEO-TRAFFIC: Enable/disable automatic vehicle spawning on map
+   */
+  toggleAutoGeoTraffic: () => set((state) => ({
+    autoGeoTraffic: !state.autoGeoTraffic
   })),
 
   /**
@@ -563,12 +662,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   }),
 
   reset: () => set({
-    poles: generatePoles(20),
-    vehicles: [], // Clear traffic
+    poles: generatePoles(2000),
+    vehicles: [], // Clear traffic (2D view)
+    geoVehicles: [], // Clear geo traffic (map view)
     env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-    metrics: { powerDraw: 2.4, carbonCredits: 0 },
+    metrics: { powerDraw: 24.0, carbonCredits: 0 },
     powerHistory: [], // Clear history on reset
-    autoTraffic: false, // Reset auto-traffic
+    autoTraffic: false, // Reset auto-traffic (2D)
+    autoGeoTraffic: true, // Keep auto-geo-traffic enabled
     gridFailure: false, // Reset grid
     _tickCount: 0,
   })

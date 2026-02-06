@@ -14,6 +14,7 @@ export const Pole = ({ data }: { data: PoleType }) => {
   const getBulbColor = () => {
     if (data.brightness === 0) return 'bg-slate-800';
     if (data.status === 'CRASH') return 'bg-red-600 shadow-[0_0_20px_#dc2626]';
+    if (data.status === 'WARNING') return 'bg-orange-500 shadow-[0_0_20px_#f97316]';
     if (data.mode === 'BATTERY') return 'bg-orange-400/70 shadow-[0_0_12px_#fb923c]';
     if (data.mode === 'FOG_AMBER') return 'bg-amber-500 shadow-[0_0_20px_#f59e0b]';
     if (data.mode === 'ECO_DIM') return 'bg-cyan-300/60 shadow-[0_0_12px_#67e8f9]';
@@ -32,11 +33,18 @@ export const Pole = ({ data }: { data: PoleType }) => {
         opacity: 1,
       };
     }
+    if (data.status === 'WARNING') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(249,115,22,${Math.min(1, 1.2 * b)}) 0%, rgba(249,115,22,${0.6 * b}) 40%, transparent 70%)`,
+        opacity: 1,
+        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      };
+    }
     if (data.mode === 'FOG_AMBER') {
       // Wider spread in fog/weather to improve road visibility coverage
       // Higher brightness per-weather creates visible "safe corridor" effect
       return {
-        background: `radial-gradient(ellipse at center, rgba(245,158,11,${Math.min(1, 1.1 * b)}) 0%, rgba(245,158,11,${0.6 * b}) 50%, rgba(245,158,11,${0.15 * b}) 75%, transparent 85%)`,
+        background: `radial-gradient(ellipse at center, rgba(245,158,11,${Math.min(1, 1.15 * b)}) 0%, rgba(245,158,11,${0.65 * b}) 50%, rgba(245,158,11,${0.2 * b}) 75%, transparent 85%)`,
         opacity: 1,
       };
     }
@@ -127,7 +135,7 @@ export const Pole = ({ data }: { data: PoleType }) => {
       <div className={cn(
         "absolute -top-6 bg-black/80 border rounded px-2 py-0.5 text-[8px] font-mono font-bold transition-opacity",
         data.status === 'CRASH' ? 'opacity-100 border-red-500 text-red-400' :
-        data.status === 'WARNING' ? 'opacity-100 border-amber-500 text-amber-400' :
+        data.status === 'WARNING' ? 'opacity-100 border-orange-500 text-orange-400' :
         'opacity-0 group-hover:opacity-100 border-slate-600 text-slate-400'
       )}>
         {data.status === 'CRASH' ? 'CRASH' : 

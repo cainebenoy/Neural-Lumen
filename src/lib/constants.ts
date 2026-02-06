@@ -20,8 +20,8 @@ export const CARBON_CREDIT_PRICE_INR = 1200; // Estimated 2026 value (₹)
 
 // Legacy baseline (what legacy lights would consume)
 export const LEGACY_CONSUMPTION_PER_POLE = 150; // W
-export const TOTAL_POLES = 20;
-export const LEGACY_BASELINE_POWER = LEGACY_CONSUMPTION_PER_POLE * TOTAL_POLES; // 3000W
+export const TOTAL_POLES = 2000; // Full-scale India highway network
+export const LEGACY_BASELINE_POWER = LEGACY_CONSUMPTION_PER_POLE * TOTAL_POLES; // 300000W = 300kW
 
 // ============ LIGHTING PHYSICS ============
 export const LUMINOUS_EFFICACY_WHITE = 140; // lm/W
@@ -54,3 +54,232 @@ export const VEHICLE_DETECTION_RANGE = 1; // Pole sectors ahead
 // ============ FINANCIAL CONSTANTS ============
 export const CARBON_CREDIT_RATE_MULTIPLIER = 0.001; // Carbon accumulated per simulation tick
 export const ECO_MODE_CREDIT_MULTIPLIER = 4; // Credits accumulate 4x faster in eco mode
+
+// ============ GEOGRAPHIC HIGHWAY ROUTES ============
+// Major and Secondary National Highway routes across India for geospatial visualization
+// 20+ routes covering the entire country for comprehensive network coverage
+export const HIGHWAY_ROUTES = [
+  {
+    name: 'NH44 (Srinagar-Kanyakumari)',
+    path: [
+      [34.0837, 74.7973], // Srinagar
+      [32.7266, 74.8570], // Jammu
+      [30.7333, 76.7794], // Chandigarh
+      [28.7041, 77.1025], // Delhi
+      [27.1767, 78.0081], // Agra
+      [26.9124, 75.7873], // Jaipur
+      [23.1765, 75.7885], // Bhopal
+      [21.1458, 79.0882], // Nagpur
+      [17.3850, 78.4867], // Hyderabad
+      [13.0827, 80.2707], // Chennai
+      [12.9716, 77.5946], // Bangalore
+      [8.5241, 76.9366],  // Kanyakumari
+    ] as [number, number][],
+  },
+  {
+    name: 'NH48 (Delhi-Mumbai)',
+    path: [
+      [28.7041, 77.1025], // Delhi
+      [27.1767, 78.0081], // Agra  
+      [26.9124, 75.7873], // Jaipur
+      [23.0225, 72.5714], // Ahmedabad
+      [22.3072, 73.1812], // Vadodara
+      [21.1702, 72.8311], // Surat
+      [19.0760, 72.8777], // Mumbai
+    ] as [number, number][],
+  },
+  {
+    name: 'NH27 (Gujarat-Assam)',
+    path: [
+      [22.3072, 70.8022], // Porbandar
+      [23.0225, 72.5714], // Ahmedabad
+      [25.2677, 82.9913], // Varanasi
+      [25.5941, 85.1376], // Patna
+      [26.1445, 91.7362], // Guwahati
+    ] as [number, number][],
+  },
+  {
+    name: 'NH2/GT Road (Delhi-Kolkata)',
+    path: [
+      [28.7041, 77.1025], // Delhi
+      [28.4595, 77.0266], // Gurgaon
+      [27.1767, 78.0081], // Agra
+      [25.4358, 81.8463], // Allahabad
+      [25.2677, 82.9913], // Varanasi
+      [25.5941, 85.1376], // Patna
+      [23.6102, 85.2799], // Ranchi
+      [22.5726, 88.3639], // Kolkata
+    ] as [number, number][],
+  },
+  {
+    name: 'Mumbai-Pune Expressway',
+    path: [
+      [19.0760, 72.8777], // Mumbai
+      [18.5204, 73.8567], // Pune
+    ] as [number, number][],
+  },
+  {
+    name: 'NH1 (Delhi-Amritsar)',
+    path: [
+      [28.7041, 77.1025], // Delhi
+      [29.0588, 77.7043], // Panipat
+      [30.2139, 77.6471], // Karnal
+      [31.5497, 76.6427], // Ambala
+      [31.8204, 75.7670], // Ludhiana
+      [31.6340, 74.8723], // Amritsar
+    ] as [number, number][],
+  },
+  {
+    name: 'NH5 (Chennai-Kolkata)',
+    path: [
+      [13.0827, 80.2707], // Chennai
+      [12.8271, 79.7297], // Tirupati
+      [15.2993, 78.8591], // Nellore
+      [16.5062, 80.6480], // Vijayawada
+      [17.6869, 83.2185], // Visakhapatnam
+      [19.8135, 85.2845], // Bhubaneswar
+      [22.5726, 88.3639], // Kolkata
+    ] as [number, number][],
+  },
+  {
+    name: 'NH7 (Varanasi-Kanyakumari)',
+    path: [
+      [25.2677, 82.9913], // Varanasi
+      [23.1765, 75.7885], // Bhopal
+      [21.1458, 79.0882], // Nagpur
+      [19.0760, 72.8777], // Mumbai
+      [15.2993, 75.8106], // Belgaum
+      [12.9716, 77.5946], // Bangalore
+      [11.4102, 79.8299], // Nellore
+      [8.5241, 76.9366],  // Kanyakumari
+    ] as [number, number][],
+  },
+  {
+    name: 'NH3 (Agra-Mumbai via Indore)',
+    path: [
+      [27.1767, 78.0081], // Agra
+      [24.1772, 79.9864], // Indore
+      [21.2458, 79.8711], // Khandwa
+      [20.1809, 73.8537], // Dhule
+      [19.0760, 72.8777], // Mumbai
+    ] as [number, number][],
+  },
+  {
+    name: 'NH6 (Kolkata-Mumbai)',
+    path: [
+      [22.5726, 88.3639], // Kolkata
+      [23.1815, 86.4144], // Asansol
+      [24.5155, 87.5771], // Gaya
+      [25.5941, 85.1376], // Patna
+      [25.2677, 82.9913], // Varanasi
+      [23.1765, 75.7885], // Bhopal
+      [21.1458, 79.0882], // Nagpur
+      [19.0760, 72.8777], // Mumbai
+    ] as [number, number][],
+  },
+  {
+    name: 'NH9 (Chennai-Bangalore)',
+    path: [
+      [13.0827, 80.2707], // Chennai
+      [12.9716, 77.5946], // Bangalore
+    ] as [number, number][],
+  },
+  {
+    name: 'NH11 (Kota-Agra)',
+    path: [
+      [25.2083, 75.8244], // Kota
+      [27.1767, 78.0081], // Agra
+    ] as [number, number][],
+  },
+  {
+    name: 'NH12 (Jaipur-Indore)',
+    path: [
+      [26.9124, 75.7873], // Jaipur
+      [25.4244, 75.5245], // Ajmer
+      [24.1772, 79.9864], // Indore
+    ] as [number, number][],
+  },
+  {
+    name: 'NH16 (Chennai-Kolkata via Vijayawada)',
+    path: [
+      [13.0827, 80.2707], // Chennai
+      [15.2993, 78.8591], // Nellore
+      [16.5062, 80.6480], // Vijayawada
+      [17.6869, 83.2185], // Visakhapatnam
+      [19.8135, 85.2845], // Bhubaneswar
+      [22.5726, 88.3639], // Kolkata
+    ] as [number, number][],
+  },
+  {
+    name: 'NH19 (Bengaluru-Tamil Nadu)',
+    path: [
+      [12.9716, 77.5946], // Bangalore
+      [11.8088, 79.7298], // Chittoor
+      [11.4102, 79.8299], // Tirupati
+    ] as [number, number][],
+  },
+  {
+    name: 'NH26 (Aligarh-Lucknow)',
+    path: [
+      [27.8950, 77.2996], // Aligarh
+      [26.8467, 80.9462], // Lucknow
+    ] as [number, number][],
+  },
+  {
+    name: 'NH31 (Siliguri-Assam)',
+    path: [
+      [26.5333, 88.4167], // Siliguri
+      [26.1445, 91.7362], // Guwahati
+    ] as [number, number][],
+  },
+  {
+    name: 'NH35 (Bhubaneswar-Kolkata)',
+    path: [
+      [19.8135, 85.2845], // Bhubaneswar
+      [20.6297, 87.2556], // Durgapur
+      [22.5726, 88.3639], // Kolkata
+    ] as [number, number][],
+  },
+  {
+    name: 'NH37 (Assam)',
+    path: [
+      [26.1445, 91.7362], // Guwahati
+      [26.6124, 92.9575], // Dibrugarh
+    ] as [number, number][],
+  },
+  {
+    name: 'Western Coastal Highway (Goa-Kerala)',
+    path: [
+      [15.4909, 73.8278], // Goa
+      [12.9822, 75.2721], // Kochi
+      [11.8088, 75.0721], // Kottayam
+    ] as [number, number][],
+  },
+  {
+    name: 'East Coast Road (Chennai-Kolkata)',
+    path: [
+      [13.0827, 80.2707], // Chennai
+      [14.0059, 80.2721], // Chengalpattu
+      [17.6869, 83.2185], // Visakhapatnam
+      [19.8135, 85.2845], // Bhubaneswar
+      [22.5726, 88.3639], // Kolkata
+    ] as [number, number][],
+  },
+  {
+    name: 'NH55 (Kolkata-Guwahati)',
+    path: [
+      [22.5726, 88.3639], // Kolkata
+      [24.5155, 87.5771], // Gaya
+      [25.5941, 85.1376], // Patna
+      [26.1445, 91.7362], // Guwahati
+    ] as [number, number][],
+  },
+  {
+    name: 'NH75 (Vadodara-Ajmer-Jaipur)',
+    path: [
+      [22.3072, 73.1812], // Vadodara
+      [25.4244, 75.5245], // Ajmer
+      [26.9124, 75.7873], // Jaipur
+    ] as [number, number][],
+  },
+];

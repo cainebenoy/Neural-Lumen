@@ -102,7 +102,7 @@ export default function Home() {
               <span className="text-sm text-slate-500 ml-1">kW</span>
             </div>
             <div className="text-xs text-slate-600 mt-2 font-mono">
-              Baseline: 3.00 kW
+              Baseline: 300.00 kW
             </div>
           </div>
 
@@ -125,10 +125,10 @@ export default function Home() {
               Nodes Active
             </div>
             <div className="font-mono text-3xl tabular-nums flex items-center gap-2">
-              <span className={poles.filter(p => p.status === 'ACTIVE').length === 20 ? 'text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)]' : 'text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)]'}>
+              <span className={poles.filter(p => p.status === 'ACTIVE').length === poles.length ? 'text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)]' : 'text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)]'}>
                 {poles.filter(p => p.status === 'ACTIVE').length}
               </span>
-              <span className="text-sm text-slate-600">/20</span>
+              <span className="text-sm text-slate-600">/{poles.length}</span>
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               {gridFailure 
@@ -145,12 +145,12 @@ export default function Home() {
             </div>
             <div className="font-mono text-3xl tabular-nums">
               <span className={(() => {
-                const pct = (poles.filter(p => p.status === 'ACTIVE').length / 20) * 100;
+                const pct = (poles.filter(p => p.status === 'ACTIVE').length / poles.length) * 100;
                 if (pct === 100) return 'text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)]';
                 if (pct >= 70) return 'text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)]';
                 return 'text-red-400 drop-shadow-[0_0_16px_rgba(239,68,68,0.6)]';
               })()}>
-                {((poles.filter(p => p.status === 'ACTIVE').length / 20) * 100).toFixed(0)}
+                {((poles.filter(p => p.status === 'ACTIVE').length / poles.length) * 100).toFixed(0)}
               </span>
               <span className="text-sm text-slate-500 ml-1">%</span>
             </div>
