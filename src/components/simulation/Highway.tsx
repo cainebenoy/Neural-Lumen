@@ -14,7 +14,6 @@ export const Highway = () => {
   // Auto-spawn vehicles every 3-5 seconds for continuous traffic
   useEffect(() => {
     const spawnInterval = setInterval(() => {
-      // Random spawn timing between 3-5 seconds
       spawnVehicle();
     }, 3000 + Math.random() * 2000);
 

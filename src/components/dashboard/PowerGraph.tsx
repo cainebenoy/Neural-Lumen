@@ -30,9 +30,9 @@ export const PowerGraph = () => {
   const { powerHistory } = useSimulationStore();
 
   return (
-    <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)] h-full">
+    <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)] h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-amber-400" />
           <h3 className="text-[10px] tracking-[0.3em] text-slate-400 uppercase font-bold font-mono">
@@ -46,7 +46,7 @@ export const PowerGraph = () => {
       </div>
 
       {/* Graph */}
-      <div className="h-[calc(100%-3rem)]">
+      <div className="flex-1 min-h-0">
         {powerHistory.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart

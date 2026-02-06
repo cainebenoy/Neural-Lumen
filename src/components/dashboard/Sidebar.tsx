@@ -198,8 +198,8 @@ export const Sidebar = () => {
           </button>
         </div>
 
-        {/* MODULE 4: Live Telemetry Graph */}
-        <div className="h-64">
+        {/* MODULE 5: Live Telemetry Graph */}
+        <div className="flex-1 min-h-0 max-h-72 bg-slate-900/50 p-4 rounded border-2 border-slate-700/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4)]">
           <PowerGraph />
         </div>
 

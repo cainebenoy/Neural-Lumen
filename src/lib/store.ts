@@ -220,10 +220,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
     // VEHICLE PHYSICS ENGINE
     // Move vehicles forward based on speed (assuming 1 second tick)
+    // Highway is 2km = 100% width, so speed % = (speed_km/h / 3600s) / 2km * 100 = speed / 72
     const updatedVehicles = state.vehicles
       .map(vehicle => ({
         ...vehicle,
-        x_pos: vehicle.x_pos + (vehicle.speed / 3600), // Convert km/h to % per second (approx 2km road)
+        x_pos: vehicle.x_pos + (vehicle.speed / 72), // Convert km/h to % per second (2km highway)
       }))
       .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
 
