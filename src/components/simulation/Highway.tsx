@@ -92,7 +92,7 @@ export const Highway = () => {
               )}
 
               {/* Speed trail effect */}
-              {vehicle.speed > 80 && (
+              {vehicle.speed > 160 && (
                 <div className="absolute -right-3 top-0 bottom-0 w-2 bg-gradient-to-r from-current to-transparent opacity-60" />
               )}
             </motion.div>

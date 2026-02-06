@@ -374,7 +374,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       const newVehicle: Vehicle = {
         id: Date.now() + Math.random(),
         x_pos: 0,
-        speed: isTruck ? 40 + Math.random() * 30 : 80 + Math.random() * 40, // Trucks: 40-70, Cars: 80-120
+        speed: isTruck ? 80 + Math.random() * 60 : 160 + Math.random() * 80, // Trucks: 80-140, Cars: 160-240
         lane: isTruck ? 1 : (Math.random() > 0.5 ? 1 : 2), // Trucks prefer lane 1 (slow lane)
         type: isTruck ? 'truck' : 'car',
       };
@@ -491,7 +491,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     const newVehicle: Vehicle = {
       id: Date.now() + Math.random(),
       x_pos: 0,
-      speed: isTruck ? 40 + Math.random() * 30 : 80 + Math.random() * 40, // Trucks: 40-70, Cars: 80-120
+      speed: isTruck ? 80 + Math.random() * 60 : 160 + Math.random() * 80, // Trucks: 80-140, Cars: 160-240
       lane: isTruck ? 1 : (Math.random() > 0.5 ? 1 : 2),
       type: isTruck ? 'truck' : 'car',
     };
@@ -514,7 +514,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       jamVehicles.push({
         id: Date.now() + Math.random() + i,
         x_pos: i * 3, // Spaced 3% apart (tight cluster)
-        speed: isTruck ? 25 + Math.random() * 15 : 35 + Math.random() * 20, // Slow: 25-55 km/h
+        speed: isTruck ? 50 + Math.random() * 40 : 70 + Math.random() * 40, // Jam speeds: 50-90 trucks, 70-110 cars
         lane: Math.random() > 0.4 ? 1 : 2, // Spread across both lanes
         type: isTruck ? 'truck' : 'car',
       });
