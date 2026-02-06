@@ -17,8 +17,21 @@ export interface Pole {
   windHarvest: number; // Watts harvested per pole
 }
 
+export interface PowerHistoryPoint {
+  time: string;
+  value: number;
+}
+
+export interface Vehicle {
+  id: number;
+  x_pos: number; // Position along highway (0-100%)
+  speed: number; // km/h
+  lane: number; // 1 or 2
+}
+
 interface SimulationState {
   poles: Pole[];
+  vehicles: Vehicle[]; // Traffic physics simulation
   env: {
     fog: boolean;
     windSpeed: number; // km/h
@@ -28,6 +41,7 @@ interface SimulationState {
     powerDraw: number; // kW
     carbonCredits: number; // Accumulated credits
   };
+  powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
   // Actions
   toggleFog: () => void;
   triggerCrash: (id: number) => void;
@@ -35,6 +49,7 @@ interface SimulationState {
   setTime: (time: number) => void;
   tick: () => void;
   reset: () => void;
+  spawnVehicle: () => void;
 }
 
 // Initialize 20 poles for the highway
@@ -50,8 +65,10 @@ const generatePoles = (count: number): Pole[] =>
 export const useSimulationStore = create<SimulationState>((set, get) => ({
   // Initial State with 20 poles
   poles: generatePoles(20),
+  vehicles: [], // Traffic simulation starts empty
   env: { fog: false, windSpeed: 10, time: 2000 },
   metrics: { powerDraw: 2.4, carbonCredits: 0 },
+  powerHistory: [], // Start with empty history
 
   /**
    * FOG MODE: Switches all poles to 'FOG_AMBER' mode
@@ -151,6 +168,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * TICK: Simulation loop
    * - Updates wind harvest based on wind speed
    * - Calculates carbon credits based on energy savings vs baseline
+   * - Tracks power history for real-time telemetry graph
+   * - Updates vehicle physics and radar detection
    */
   tick: () => set((state) => {
     // Calculate power consumption
@@ -166,21 +185,107 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     // Wind harvest calculation with realistic variance
     const harvestPerPole = state.env.windSpeed * 0.5 * (0.8 + Math.random() * 0.4);
 
+    const newPowerDraw = Number((totalWatts / 1000).toFixed(2));
+
+    // Update power history (ECG-style scrolling data)
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { 
+      hour12: false, 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
+    });
+    
+    const newHistoryPoint: PowerHistoryPoint = {
+      time: timeString,
+      value: newPowerDraw,
+    };
+
+    // Keep only last 50 data points for performance
+    const updatedHistory = [...state.powerHistory, newHistoryPoint];
+    if (updatedHistory.length > 50) {
+      updatedHistory.shift(); // Remove oldest entry
+    }
+
+    // VEHICLE PHYSICS ENGINE
+    // Move vehicles forward based on speed (assuming 1 second tick)
+    const updatedVehicles = state.vehicles
+      .map(vehicle => ({
+        ...vehicle,
+        x_pos: vehicle.x_pos + (vehicle.speed / 3600), // Convert km/h to % per second (approx 2km road)
+      }))
+      .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
+
+    // RADAR DETECTION LOGIC
+    // Each pole covers 5% of the highway (20 poles = 100%)
+    const updatedPoles = state.poles.map((pole, index) => {
+      // Don't override crash or warning states
+      if (pole.status === 'CRASH' || pole.status === 'WARNING') return pole;
+
+      const polePosition = (index / 19) * 100; // 0% to 100%
+      const detectionRange = 10; // ±10% detection zone
+
+      // Check if any vehicle is near this pole
+      const vehicleDetected = updatedVehicles.some(
+        vehicle => Math.abs(vehicle.x_pos - polePosition) < detectionRange
+      );
+
+      // PREDICTIVE LIGHTING: Boost brightness when vehicle detected
+      if (vehicleDetected) {
+        return {
+          ...pole,
+          brightness: 100, // Full brightness for safety
+        };
+      }
+
+      // Fade back to standard brightness based on mode
+      let standardBrightness = 80;
+      if (pole.mode === 'FOG_AMBER') standardBrightness = 100;
+      if (pole.mode === 'ECO_DIM') standardBrightness = 30;
+
+      return {
+        ...pole,
+        brightness: pole.brightness > standardBrightness 
+          ? Math.max(standardBrightness, pole.brightness - 10) // Gradual fade
+          : standardBrightness,
+      };
+    });
+
     return {
       metrics: {
-        powerDraw: Number((totalWatts / 1000).toFixed(2)), // Convert to kW
+        powerDraw: newPowerDraw,
         carbonCredits: state.metrics.carbonCredits + (savings * 0.0001), // Accumulate credits
       },
-      poles: state.poles.map(p => ({
+      poles: updatedPoles.map(p => ({
         ...p,
         windHarvest: Number(harvestPerPole.toFixed(2)),
-      }))
+      })),
+      powerHistory: updatedHistory,
+      vehicles: updatedVehicles,
+    };
+  }),
+
+  /**
+   * SPAWN VEHICLE: Creates a new vehicle at the start of the highway
+   */
+  spawnVehicle: () => set((state) => {
+    const newVehicle: Vehicle = {
+      id: Date.now() + Math.random(), // Unique ID
+      x_pos: 0, // Start at beginning
+      speed: 60 + Math.random() * 60, // Random speed 60-120 km/h
+      lane: Math.random() > 0.5 ? 1 : 2, // Random lane
+    };
+
+    return {
+      vehicles: [...state.vehicles, newVehicle],
     };
   }),
 
   reset: () => set({
     poles: generatePoles(20),
+    vehicles: [], // Clear traffic
     env: { fog: false, windSpeed: 10, time: 2000 },
-    metrics: { powerDraw: 2.4, carbonCredits: 0 }
+    metrics: { powerDraw: 2.4, carbonCredits: 0 },
+    powerHistory: [], // Clear history on reset
   })
 }));

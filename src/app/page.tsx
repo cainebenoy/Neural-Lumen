@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Highway } from '@/components/simulation/Highway';
 import { MapViewport } from '@/components/simulation/MapViewport';
+import { GeoMap } from '@/components/simulation/GeoMap';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { useSimulationStore } from '@/lib/store';
-import { Activity, Map, Grid3x3 } from 'lucide-react';
+import { Activity, Map, Grid3x3, Globe } from 'lucide-react';
 
 /**
  * Neural-Lumen Main Page
@@ -13,7 +14,7 @@ import { Activity, Map, Grid3x3 } from 'lucide-react';
  */
 export default function Home() {
   const { metrics, tick } = useSimulationStore();
-  const [viewMode, setViewMode] = useState<'simulation' | 'map'>('map');
+  const [viewMode, setViewMode] = useState<'simulation' | 'map' | 'geo'>('geo');
 
   // Simulation Loop: Call tick() every 1 second
   useEffect(() => {
@@ -51,9 +52,22 @@ export default function Home() {
                   ? 'bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
+              title="Mapbox satellite view"
             >
               <Map size={16} />
-              <span className="text-xs font-mono font-bold">MAP VIEW</span>
+              <span className="text-xs font-mono font-bold">MAP</span>
+            </button>
+            <button
+              onClick={() => setViewMode('geo')}
+              className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
+                viewMode === 'geo'
+                  ? 'bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Geospatial map view"
+            >
+              <Globe size={16} />
+              <span className="text-xs font-mono font-bold">GEO</span>
             </button>
             <button
               onClick={() => setViewMode('simulation')}
@@ -62,16 +76,19 @@ export default function Home() {
                   ? 'bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
+              title="Linear simulation view"
             >
               <Grid3x3 size={16} />
-              <span className="text-xs font-mono font-bold">SIMULATION</span>
+              <span className="text-xs font-mono font-bold">SIM</span>
             </button>
           </div>
         </div>
 
         {/* CENTER: Dynamic Viewport */}
         <div className="flex-1 flex items-center justify-center">
-          {viewMode === 'map' ? <MapViewport /> : <Highway />}
+          {viewMode === 'map' && <MapViewport />}
+          {viewMode === 'geo' && <GeoMap />}
+          {viewMode === 'simulation' && <Highway />}
         </div>
 
         {/* HUD: Digital LCD Readout Metrics */}

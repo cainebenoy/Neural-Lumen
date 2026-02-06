@@ -1,13 +1,14 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car } from 'lucide-react';
+import { PowerGraph } from './PowerGraph';
 
 /**
  * Sidebar Component - The Control Deck
  * Skeuomorphic operator console for simulation control
  */
 export const Sidebar = () => {
-  const { env, toggleFog, setWind, setTime, triggerCrash } = useSimulationStore();
+  const { env, vehicles, toggleFog, setWind, setTime, triggerCrash, spawnVehicle } = useSimulationStore();
 
   return (
     <div className="w-80 h-full bg-[#1e1f23] border-l-4 border-slate-700 flex flex-col shadow-[inset_4px_0_12px_rgba(0,0,0,0.6)]">
@@ -108,7 +109,35 @@ export const Sidebar = () => {
           </div>
         </div>
 
-        {/* MODULE 3: Hazard Testing */}
+        {/* MODULE 3: Traffic Simulation */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-cyan-900/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_12px_rgba(6,182,212,0.1)]">
+          <div className="text-[10px] tracking-[0.2em] text-cyan-400 uppercase font-bold mb-4 pb-2 border-b border-cyan-900/50">
+            Traffic Physics
+          </div>
+          
+          <div className="space-y-3">
+            {/* Vehicle Counter */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Active Vehicles</span>
+              <span className="text-cyan-400 font-mono font-bold">{vehicles.length}</span>
+            </div>
+
+            {/* Spawn Button */}
+            <button 
+              onClick={spawnVehicle}
+              className="w-full h-14 bg-gradient-to-b from-cyan-900/40 to-cyan-950/60 border-2 border-cyan-800 text-cyan-400 font-bold rounded hover:from-cyan-800/50 hover:to-cyan-900/70 hover:border-cyan-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#164e63,0_6px_12px_rgba(0,0,0,0.6)]"
+            >
+              <Car size={18} className="drop-shadow-[0_0_6px_rgba(6,182,212,0.6)]" />
+              <span className="text-xs tracking-[0.2em]">SPAWN VEHICLE</span>
+            </button>
+
+            <p className="text-[9px] text-slate-600 font-mono text-center">
+              Auto-spawning every 3-5s
+            </p>
+          </div>
+        </div>
+
+        {/* MODULE 4: Hazard Testing */}
         <div className="bg-slate-900/50 p-4 rounded border-2 border-red-900/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_12px_rgba(220,38,38,0.1)]">
           <div className="text-[10px] tracking-[0.2em] text-red-400 uppercase font-bold mb-4 pb-2 border-b border-red-900/50">
             Hazard Simulation
@@ -122,6 +151,11 @@ export const Sidebar = () => {
             <span className="text-xs tracking-[0.2em]">CRASH TEST</span>
             <span className="text-[9px] text-red-500/70 font-mono">POLE #18</span>
           </button>
+        </div>
+
+        {/* MODULE 4: Live Telemetry Graph */}
+        <div className="h-64">
+          <PowerGraph />
         </div>
 
       </div>
