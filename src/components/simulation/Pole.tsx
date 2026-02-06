@@ -33,8 +33,10 @@ export const Pole = ({ data }: { data: PoleType }) => {
       };
     }
     if (data.mode === 'FOG_AMBER') {
+      // Wider spread in fog/weather to improve road visibility coverage
+      // Higher brightness per-weather creates visible "safe corridor" effect
       return {
-        background: `radial-gradient(ellipse at center, rgba(245,158,11,${Math.min(1, 1.0 * b)}) 0%, rgba(245,158,11,${0.5 * b}) 45%, transparent 70%)`,
+        background: `radial-gradient(ellipse at center, rgba(245,158,11,${Math.min(1, 1.1 * b)}) 0%, rgba(245,158,11,${0.6 * b}) 50%, rgba(245,158,11,${0.15 * b}) 75%, transparent 85%)`,
         opacity: 1,
       };
     }

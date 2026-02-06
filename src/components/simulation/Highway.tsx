@@ -101,8 +101,20 @@ export const Highway = () => {
       </div>
 
       {/* FOG LAYER - Active when fog mode is enabled (manual or weather-triggered) */}
+      {/* Opacity and blur scale with weather severity for realism */}
       {env.fog && (
-        <div className="absolute inset-0 z-40 pointer-events-none bg-slate-500/20 backdrop-blur-sm" />
+        <div 
+          className="absolute inset-0 z-40 pointer-events-none"
+          style={{
+            background: env.weather === 'SNOW'
+              ? 'linear-gradient(to bottom, rgba(200,210,225,0.35) 0%, rgba(180,195,210,0.25) 50%, rgba(160,175,195,0.15) 100%)'
+              : env.weather === 'RAIN'
+              ? 'linear-gradient(to bottom, rgba(100,116,139,0.3) 0%, rgba(71,85,105,0.2) 50%, rgba(51,65,85,0.1) 100%)'
+              : 'linear-gradient(to bottom, rgba(148,163,184,0.25) 0%, rgba(100,116,139,0.15) 60%, transparent 100%)',
+            backdropFilter: env.weather === 'SNOW' ? 'blur(3px)' : env.weather === 'RAIN' ? 'blur(2px)' : 'blur(1.5px)',
+            transition: 'all 1s ease-in-out',
+          }}
+        />
       )}
 
       {/* WEATHER OVERLAY - Rain or Snow particle effects */}

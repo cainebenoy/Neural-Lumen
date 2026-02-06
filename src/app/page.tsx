@@ -6,7 +6,7 @@ import { Highway } from '@/components/simulation/Highway';
 import { GeoMap } from '@/components/simulation/GeoMap';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { useSimulationStore } from '@/lib/store';
-import { Activity, Map, Grid3x3, Globe, Wifi, WifiOff, Gauge } from 'lucide-react';
+import { Activity, Map, Grid3x3, Globe, Wifi, WifiOff, Gauge, Eye } from 'lucide-react';
 
 /**
  * Neural-Lumen Main Page
@@ -17,6 +17,7 @@ export default function Home() {
   const metrics = useSimulationStore((state) => state.metrics);
   const poles = useSimulationStore((state) => state.poles);
   const gridFailure = useSimulationStore((state) => state.gridFailure);
+  const env = useSimulationStore((state) => state.env);
   const tick = useSimulationStore((state) => state.tick);
   const [viewMode, setViewMode] = useState<'simulation' | 'geo'>('simulation');
 
@@ -88,7 +89,7 @@ export default function Home() {
         </div>
 
         {/* HUD: Digital LCD Readout Metrics */}
-        <div className="mt-6 grid grid-cols-4 gap-4">
+        <div className="mt-6 grid grid-cols-5 gap-4">
           
           {/* Power Draw */}
           <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)]">
@@ -156,6 +157,29 @@ export default function Home() {
               <Gauge size={10} className="text-slate-500" />
               <span className="text-xs text-slate-600 font-mono">
                 {poles.filter(p => p.status === 'CRASH').length} crashed, {poles.filter(p => p.status === 'WARNING').length} warning
+              </span>
+            </div>
+          </div>
+
+          {/* Visibility */}
+          <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)]">
+            <div className="text-[9px] tracking-[0.3em] text-slate-500 uppercase font-bold mb-2 font-mono">
+              Visibility
+            </div>
+            <div className="font-mono text-3xl tabular-nums">
+              <span className={(() => {
+                if (env.visibility >= 80) return 'text-emerald-400 drop-shadow-[0_0_16px_rgba(16,185,129,0.6)]';
+                if (env.visibility >= 50) return 'text-amber-400 drop-shadow-[0_0_16px_rgba(251,191,36,0.6)]';
+                return 'text-red-400 drop-shadow-[0_0_16px_rgba(239,68,68,0.6)]';
+              })()}>
+                {env.visibility}
+              </span>
+              <span className="text-sm text-slate-500 ml-1">%</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <Eye size={10} className={env.visibility >= 80 ? 'text-emerald-500' : env.visibility >= 50 ? 'text-amber-500' : 'text-red-500'} />
+              <span className="text-xs text-slate-600 font-mono">
+                {env.visibility >= 80 ? 'Clear' : env.visibility >= 50 ? 'Reduced' : env.visibility >= 30 ? 'Poor' : 'Hazardous'}
               </span>
             </div>
           </div>

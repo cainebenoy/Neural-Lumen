@@ -16,8 +16,8 @@ interface Particle {
 
 /**
  * WeatherOverlay Component - Particle Effects System
- * Rain: Fast-falling blue lines
- * Snow: Slow-falling white circles
+ * Rain: Fast-falling blue lines, intensity scales with wind
+ * Snow: Slow-falling white circles, wind causes drift and density
  * Clear: No overlay
  */
 export const WeatherOverlay = () => {
@@ -41,31 +41,35 @@ export const WeatherOverlay = () => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Initialize particles based on weather type
+    // Wind intensity factor (0-30 range mapped to multiplier)
+    const windFactor = Math.max(0.5, env.windSpeed / 15); // 0.5x at calm, 2x at 30 m/s
+
+    // Initialize particles based on weather type — count scales with wind
     const initializeParticles = () => {
       particlesRef.current = [];
-      const particleCount = env.weather === 'RAIN' ? 100 : 50;
+      const baseCount = env.weather === 'RAIN' ? 100 : 50;
+      const particleCount = Math.round(baseCount * Math.min(2, windFactor));
 
       for (let i = 0; i < particleCount; i++) {
         if (env.weather === 'RAIN') {
-          // Rain: Fast-falling blue lines — spread across full canvas
+          // Rain: Fast-falling blue lines — wind increases speed and angle
           particlesRef.current.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            length: 15 + Math.random() * 10,
-            width: 1,
-            speed: 8 + Math.random() * 4,
-            color: `rgba(96, 165, 250, ${0.6 + Math.random() * 0.4})`,
+            length: 12 + Math.random() * 12 + env.windSpeed * 0.3,
+            width: 1 + (env.windSpeed > 20 ? 1 : 0), // Heavier rain lines in high wind
+            speed: 7 + Math.random() * 5 + env.windSpeed * 0.2,
+            color: `rgba(96, 165, 250, ${0.5 + Math.random() * 0.4})`,
           });
         } else if (env.weather === 'SNOW') {
-          // Snow: Slow-falling white circles — spread across full canvas
+          // Snow: Slow-falling white circles — wind increases drift
           particlesRef.current.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             radius: 2 + Math.random() * 4,
-            speed: 0.5 + Math.random() * 1.5,
-            drift: (Math.random() - 0.5) * 0.5,
-            color: `rgba(255, 255, 255, ${0.4 + Math.random() * 0.4})`,
+            speed: 0.4 + Math.random() * 1.2 + env.windSpeed * 0.05,
+            drift: (Math.random() - 0.3) * (0.5 + env.windSpeed * 0.08), // Wind pushes snow sideways
+            color: `rgba(255, 255, 255, ${0.35 + Math.random() * 0.45})`,
           });
         }
       }
@@ -80,18 +84,20 @@ export const WeatherOverlay = () => {
 
       particlesRef.current.forEach((particle) => {
         if (env.weather === 'RAIN') {
-          // Draw rain (diagonal lines)
+          // Draw rain (diagonal lines — angle increases with wind)
           ctx.strokeStyle = particle.color;
           ctx.lineWidth = particle.width || 1;
           ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(particle.x, particle.y);
-          ctx.lineTo(particle.x + 5, particle.y + (particle.length || 10));
+          // Wind pushes rain sideways: more wind = more horizontal angle
+          const rainAngle = 3 + env.windSpeed * 0.3;
+          ctx.lineTo(particle.x + rainAngle, particle.y + (particle.length || 10));
           ctx.stroke();
 
           // Update position
           particle.y += particle.speed;
-          particle.x += 2; // Slight horizontal drift
+          particle.x += 1.5 + env.windSpeed * 0.15; // Wind-driven horizontal drift
 
           // Respawn if off-screen
           if (particle.y > canvas.height) {
@@ -128,7 +134,7 @@ export const WeatherOverlay = () => {
       }
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [env.weather]);
+  }, [env.weather, env.windSpeed]);
 
   if (env.weather === 'CLEAR') {
     return null;

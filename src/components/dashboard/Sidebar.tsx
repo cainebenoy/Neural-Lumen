@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 
 /**
@@ -125,6 +125,48 @@ export const Sidebar = () => {
                   Snow
                 </button>
               </div>
+            </div>
+
+            {/* Visibility Indicator Bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-slate-300 text-[10px] font-mono font-bold flex items-center gap-1.5">
+                  <Eye size={12} className={env.visibility >= 80 ? 'text-emerald-400' : env.visibility >= 50 ? 'text-amber-400' : 'text-red-400'} />
+                  VISIBILITY
+                </label>
+                <span className={`text-[10px] font-mono font-bold ${
+                  env.visibility >= 80 ? 'text-emerald-400' : env.visibility >= 50 ? 'text-amber-400' : 'text-red-400'
+                }`}>
+                  {env.visibility}%
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-950 rounded-full border border-slate-700 overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)]">
+                <div 
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${env.visibility}%`,
+                    background: env.visibility >= 80 
+                      ? 'linear-gradient(to right, #10b981, #34d399)' 
+                      : env.visibility >= 50 
+                      ? 'linear-gradient(to right, #f59e0b, #fbbf24)' 
+                      : 'linear-gradient(to right, #ef4444, #f87171)',
+                    boxShadow: env.visibility >= 80 
+                      ? '0 0 8px rgba(16,185,129,0.6)' 
+                      : env.visibility >= 50 
+                      ? '0 0 8px rgba(245,158,11,0.6)' 
+                      : '0 0 8px rgba(239,68,68,0.6)',
+                  }}
+                />
+              </div>
+              <p className="text-[8px] text-slate-600 font-mono">
+                {env.fog && env.weather !== 'CLEAR' 
+                  ? `${env.weather} + FOG — Lights at max for safety` 
+                  : env.fog 
+                  ? 'FOG — Amber mode active' 
+                  : env.weather !== 'CLEAR' 
+                  ? `${env.weather} conditions detected`
+                  : 'Conditions clear'}
+              </p>
             </div>
           </div>
         </div>

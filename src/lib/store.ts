@@ -41,6 +41,7 @@ interface SimulationState {
     windSpeed: number; // km/h
     time: number; // 24-hour format (0-2400)
     weather: WeatherType; // CLEAR, RAIN, or SNOW
+    visibility: number; // 0-100% visibility (100 = clear, 0 = zero visibility)
   };
   metrics: {
     powerDraw: number; // kW
@@ -73,11 +74,55 @@ const generatePoles = (count: number): Pole[] =>
     windHarvest: 0,
   }));
 
+/**
+ * Calculate visibility percentage based on environmental conditions
+ * Factors: fog presence, weather type, wind speed
+ * Wind > 15 helps disperse fog (+10-15%), but in rain wind > 20 kicks up spray (-5%)
+ */
+const calculateVisibility = (fog: boolean, weather: WeatherType, windSpeed: number): number => {
+  let vis = 100;
+
+  // Base weather impact
+  if (weather === 'SNOW') vis -= 55;      // Snow: heavy visibility reduction
+  else if (weather === 'RAIN') vis -= 35;  // Rain: moderate reduction
+
+  // Fog layer (independent or compounding with weather)
+  if (fog && weather === 'CLEAR') vis -= 45; // Fog alone: 55% visibility
+  else if (fog) vis -= 15;                   // Fog + weather: compounds
+
+  // Wind effects on visibility
+  if (fog && windSpeed > 15) {
+    // High wind helps disperse fog
+    vis += Math.min(15, (windSpeed - 15) * 1.5);
+  }
+  if (weather === 'RAIN' && windSpeed > 20) {
+    // Very high wind in rain = spray reducing visibility further
+    vis -= Math.min(10, (windSpeed - 20) * 1);
+  }
+  if (weather === 'SNOW' && windSpeed > 10) {
+    // Wind-blown snow (whiteout conditions)
+    vis -= Math.min(15, (windSpeed - 10) * 0.75);
+  }
+
+  return Math.max(5, Math.min(100, Math.round(vis))); // Clamp 5-100%
+};
+
+/**
+ * Get maximum safe vehicle speed for current weather conditions
+ * Returns a speed multiplier (0.0 - 1.0)
+ */
+const getWeatherSpeedMultiplier = (weather: WeatherType, fog: boolean): number => {
+  if (weather === 'SNOW') return 0.45;  // Max ~55 km/h for cars, ~32 km/h for trucks
+  if (weather === 'RAIN') return 0.65;  // Max ~78 km/h for cars, ~45 km/h for trucks
+  if (fog) return 0.7;                  // Fog alone: ~84 km/h for cars
+  return 1.0;                           // Clear: no cap
+};
+
 export const useSimulationStore = create<SimulationState>((set, get) => ({
   // Initial State with 20 poles
   poles: generatePoles(20),
   vehicles: [], // Traffic simulation starts empty
-  env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR' },
+  env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
   metrics: { powerDraw: 2.4, carbonCredits: 0 },
   powerHistory: [], // Start with empty history
   autoTraffic: false, // Auto-spawn disabled by default
@@ -87,6 +132,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * FOG MODE: Switches all poles to 'FOG_AMBER' mode
    * White (Standard) → Amber (Fog)
    * Syncs with weather state — toggling fog off during RAIN/SNOW resets weather to CLEAR
+   * Calculates visibility based on fog + weather + wind conditions
    */
   toggleFog: () => set((state) => {
     const newFogState = !state.env.fog;
@@ -96,14 +142,24 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       ? 'CLEAR' as WeatherType
       : state.env.weather;
     
+    // Calculate visibility: fog alone = 40%, weather compounds it further
+    const visibility = calculateVisibility(newFogState, newWeather, state.env.windSpeed);
+    
     return {
-      env: { ...state.env, fog: newFogState, weather: newWeather },
+      env: { ...state.env, fog: newFogState, weather: newWeather, visibility },
       poles: state.poles.map(p => {
         // Don't override crash or warning states
         if (p.status === 'CRASH' || p.status === 'WARNING') return p;
         
+        // Grid failure takes priority over fog
+        if (state.gridFailure) {
+          return { ...p, mode: 'BATTERY' as PoleMode, brightness: 25 };
+        }
+        
         if (newFogState) {
-          return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
+          // Brightness scales with how poor visibility is — worse visibility = brighter lights
+          const fogBrightness = newWeather === 'SNOW' ? 100 : newWeather === 'RAIN' ? 90 : 80;
+          return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: fogBrightness };
         }
         
         // Turning fog off: respect time-of-day modes
@@ -163,9 +219,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     }
   },
 
-  setWind: (speed: number) => set((state) => ({
-    env: { ...state.env, windSpeed: speed }
-  })),
+  setWind: (speed: number) => set((state) => {
+    // Wind affects visibility: high wind disperses fog slightly, but also kicks up spray in rain
+    const visibility = calculateVisibility(state.env.fog, state.env.weather, speed);
+    return {
+      env: { ...state.env, windSpeed: speed, visibility }
+    };
+  }),
 
   /**
    * TIME CONTROL with mode priority:
@@ -216,23 +276,29 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * Demonstrates weather resilience of the lighting system
    * Auto-enables fog mode for RAIN and SNOW conditions
    * CLEAR resets poles back to STANDARD mode
+   * Visibility degrades with weather: RAIN=50%, SNOW=30%, FOG alone=40%
+   * Vehicle speeds are capped by weather conditions in tick()
    */
   setWeather: (weather: WeatherType) => set((state) => {
     const needsFog = weather === 'RAIN' || weather === 'SNOW';
+    const visibility = calculateVisibility(needsFog || state.env.fog, weather, state.env.windSpeed);
     
     const newPoles = state.poles.map(p => {
       // Don't override crash or warning states
       if (p.status === 'CRASH' || p.status === 'WARNING') return p;
       
-      if (needsFog) {
-        // RAIN/SNOW: Amber fog mode at full brightness for safety
-        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
-      }
-      
-      // CLEAR: Reset poles based on time-of-day
+      // Grid failure takes priority
       if (state.gridFailure) {
         return { ...p, mode: 'BATTERY' as PoleMode, brightness: 25 };
       }
+      
+      if (needsFog) {
+        // SNOW: max brightness (worst visibility), RAIN: 90%
+        const weatherBrightness = weather === 'SNOW' ? 100 : 90;
+        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: weatherBrightness };
+      }
+      
+      // CLEAR: Reset poles based on time-of-day
       const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
       if (isDaytime) {
         return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
@@ -245,7 +311,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     });
 
     return {
-      env: { ...state.env, weather, fog: needsFog },
+      env: { ...state.env, weather, fog: needsFog || state.env.fog, visibility },
       poles: newPoles
     };
   }),
@@ -311,11 +377,16 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     // VEHICLE PHYSICS ENGINE
     // Move vehicles forward based on speed (assuming 1 second tick)
     // Highway is 2km = 100% width, so speed % = (speed_km/h / 3600s) / 2km * 100 = speed / 72
+    // Weather caps effective speed for realism
+    const speedMultiplier = getWeatherSpeedMultiplier(state.env.weather, state.env.fog);
     const updatedVehicles = vehiclesToUpdate
-      .map(vehicle => ({
-        ...vehicle,
-        x_pos: vehicle.x_pos + (vehicle.speed / 72), // Convert km/h to % per second (2km highway)
-      }))
+      .map(vehicle => {
+        const effectiveSpeed = Math.min(vehicle.speed, vehicle.speed * speedMultiplier);
+        return {
+          ...vehicle,
+          x_pos: vehicle.x_pos + (effectiveSpeed / 72), // Convert km/h to % per second (2km highway)
+        };
+      })
       .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
 
     // RADAR DETECTION LOGIC
@@ -334,7 +405,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
             recoveryBrightness = 25;
           } else if (state.env.fog) {
             recoveryMode = 'FOG_AMBER';
-            recoveryBrightness = 100;
+            // Weather-specific brightness: snow=100, rain=90, fog-only=80
+            recoveryBrightness = state.env.weather === 'SNOW' ? 100 : state.env.weather === 'RAIN' ? 90 : 80;
           } else if (isDaytime) {
             recoveryMode = 'STANDARD';
             recoveryBrightness = 0;
@@ -370,7 +442,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
       // Fade back to standard brightness based on mode
       let standardBrightness = 40;
-      if (pole.mode === 'FOG_AMBER') standardBrightness = 100;
+      if (pole.mode === 'FOG_AMBER') {
+        // Weather-specific: snow=100, rain=90, fog-only=80
+        standardBrightness = state.env.weather === 'SNOW' ? 100 : state.env.weather === 'RAIN' ? 90 : 80;
+      }
       if (pole.mode === 'ECO_DIM') standardBrightness = 30;
       if (pole.mode === 'BATTERY') standardBrightness = 25;
       
@@ -482,7 +557,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   reset: () => set({
     poles: generatePoles(20),
     vehicles: [], // Clear traffic
-    env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR' },
+    env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
     metrics: { powerDraw: 2.4, carbonCredits: 0 },
     powerHistory: [], // Clear history on reset
     autoTraffic: false, // Reset auto-traffic
