@@ -35,7 +35,7 @@ const notify = (type: 'crash' | 'weather' | 'grid' | 'info' | 'success', title: 
 };
 
 // TypeScript Interfaces
-export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY';
+export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY' | 'CORRIDOR_BLUE' | 'HAZARD_RED' | 'SPOTLIGHT_WHITE';
 export type PoleStatus = 'ACTIVE' | 'CRASH' | 'WARNING';
 export type WeatherType = 'CLEAR' | 'RAIN' | 'SNOW';
 
@@ -52,7 +52,7 @@ export interface PowerHistoryPoint {
   value: number;
 }
 
-export type VehicleType = 'car' | 'truck';
+export type VehicleType = 'car' | 'truck' | 'ambulance';
 
 export interface Vehicle {
   id: number;
@@ -88,6 +88,8 @@ interface SimulationState {
     turbineOutput: number; // kW harvested from wind turbines
     netGridDraw: number; // kW (powerDraw - turbineOutput)
     carbonCredits: number; // Accumulated credits
+    livesSaved: number; // Golden Hour Protocol impact
+    accidentsPrevented: number; // Phantom Shield impact
   };
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
   autoTraffic: boolean; // Auto-spawn vehicles (2D view)
@@ -102,7 +104,7 @@ interface SimulationState {
   setWeather: (weather: WeatherType) => void;
   tick: () => void;
   reset: () => void;
-  spawnVehicle: (forceType?: VehicleType) => void;
+  spawnVehicle: (forceType?: VehicleType, isStalled?: boolean) => void;
   spawnTrafficJam: () => void;
   toggleAutoTraffic: () => void;
   spawnGeoVehicle: (routeIndex?: number, forceType?: VehicleType) => void;
@@ -171,7 +173,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   vehicles: [], // Traffic simulation starts empty (2D view)
   geoVehicles: [], // Geographic vehicles (map view)
   env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0 },
+  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0 },
   powerHistory: [], // Start with empty history
   autoTraffic: false, // Auto-spawn disabled by default (2D view)
   autoGeoTraffic: true, // Auto-spawn enabled for map view by default
@@ -507,9 +509,117 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       })
       .filter(vehicle => vehicle.progress <= 1.05); // Remove vehicles that completed route
 
+    // GOLDEN HOUR PROTOCOL: Check for active ambulances
+    const ambulance = updatedVehicles.find(v => v.type === 'ambulance');
+    const ambulanceCorridorPoleIds: Set<number> = new Set();
+    
+    if (ambulance) {
+      // Calculate 5 poles AHEAD of the ambulance (500m corridor)
+      // Each pole covers ~5% of highway (2000 poles = 100%), so 5 poles = 0.25%
+      // We need to find poles that are 0.25% to 2.5% ahead of ambulance position
+      const ambulancePosition = ambulance.x_pos; // 0-100%
+      const corridorStartPercent = ambulancePosition + 0.5; // Start just ahead
+      const corridorEndPercent = ambulancePosition + 5; // 5% ahead (~500m)
+      
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        if (polePosition > corridorStartPercent && polePosition <= corridorEndPercent) {
+          ambulanceCorridorPoleIds.add(pole.id);
+        }
+      });
+    }
+
+    // PHANTOM SHIELD: Check for stalled vehicles (Ghost Trucks)
+    const stalledVehicle = updatedVehicles.find(v => v.speed === 0);
+    const hazardRedPoleIds: Set<number> = new Set();
+    let spotlightPoleId: number | null = null;
+    
+    if (stalledVehicle) {
+      const stalledPosition = stalledVehicle.x_pos; // 0-100%
+      
+      // Find the pole directly above the stalled vehicle (SPOTLIGHT_WHITE)
+      let closestPoleIndex = 0;
+      let minDistance = Infinity;
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        const distance = Math.abs(polePosition - stalledPosition);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestPoleIndex = index;
+          spotlightPoleId = pole.id;
+        }
+      });
+      
+      // Find 5 poles BEHIND (upstream) the stalled vehicle (HAZARD_RED warning zone)
+      // Behind means lower position percentage (where approaching cars come from)
+      const hazardStartPercent = stalledPosition - 5; // 5% behind (~500m)
+      const hazardEndPercent = stalledPosition - 0.5; // End just behind
+      
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        if (polePosition >= hazardStartPercent && polePosition < hazardEndPercent) {
+          hazardRedPoleIds.add(pole.id);
+        }
+      });
+    }
+
     // RADAR DETECTION LOGIC
     // Each pole covers ~5% of the highway (20 poles = 100%)
     const updatedPoles = state.poles.map((pole, index) => {
+      // GOLDEN HOUR: Priority corridor for ambulance (overrides other modes)
+      if (ambulanceCorridorPoleIds.has(pole.id)) {
+        return {
+          ...pole,
+          mode: 'CORRIDOR_BLUE' as PoleMode,
+          brightness: 100,
+          status: 'ACTIVE' as PoleStatus,
+        };
+      }
+      
+      // PHANTOM SHIELD: Spotlight pole directly above stalled vehicle
+      if (spotlightPoleId === pole.id) {
+        return {
+          ...pole,
+          mode: 'SPOTLIGHT_WHITE' as PoleMode,
+          brightness: 100,
+          status: 'ACTIVE' as PoleStatus,
+        };
+      }
+      
+      // PHANTOM SHIELD: Hazard zone behind stalled vehicle
+      if (hazardRedPoleIds.has(pole.id)) {
+        return {
+          ...pole,
+          mode: 'HAZARD_RED' as PoleMode,
+          brightness: 100,
+          status: 'WARNING' as PoleStatus,
+        };
+      }
+      
+      // Reset CORRIDOR_BLUE, HAZARD_RED, SPOTLIGHT_WHITE poles back to normal
+      if ((pole.mode === 'CORRIDOR_BLUE' && !ambulanceCorridorPoleIds.has(pole.id)) ||
+          (pole.mode === 'HAZARD_RED' && !hazardRedPoleIds.has(pole.id)) ||
+          (pole.mode === 'SPOTLIGHT_WHITE' && spotlightPoleId !== pole.id)) {
+        const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
+        const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
+        let resetMode: PoleMode = 'STANDARD';
+        let resetBrightness = 40;
+        if (state.gridFailure) {
+          resetMode = 'BATTERY';
+          resetBrightness = 25;
+        } else if (state.env.fog) {
+          resetMode = 'FOG_AMBER';
+          resetBrightness = state.env.weather === 'SNOW' ? 100 : state.env.weather === 'RAIN' ? 90 : 80;
+        } else if (isDaytime) {
+          resetMode = 'STANDARD';
+          resetBrightness = 0;
+        } else if (isEcoHours) {
+          resetMode = 'ECO_DIM';
+          resetBrightness = 30;
+        }
+        return { ...pole, mode: resetMode, brightness: resetBrightness };
+      }
+
       // Auto-recover CRASH/WARNING states (~8 second average recovery)
       if (pole.status === 'CRASH' || pole.status === 'WARNING') {
         if (Math.random() < 0.024) {
@@ -591,6 +701,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         // Grid emission factor India = 0.82 kgCO2/kWh
         // Simplified accumulation rate for visual feedback
         carbonCredits: state.metrics.carbonCredits + ((savings / 1000) * (1/18000) * 0.82 * 0.5),
+        // Golden Hour Protocol: Increment lives saved when ambulance is active (~1 life per full corridor run)
+        livesSaved: state.metrics.livesSaved + (ambulance ? 0.002 : 0),
+        // Phantom Shield: Increment accidents prevented when stalled vehicle is detected (~1 accident prevented per minute of protection)
+        accidentsPrevented: state.metrics.accidentsPrevented + (stalledVehicle ? 0.003 : 0),
       },
       poles: updatedPoles.map(p => ({
         ...p,
@@ -605,15 +719,47 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   /**
    * SPAWN VEHICLE: Creates a new vehicle at the start of the highway
+   * Supports car, truck, ambulance (Golden Hour Protocol), and stalled vehicles (Phantom Shield)
    */
-  spawnVehicle: (forceType?: VehicleType) => set((state) => {
-    const isTruck = forceType === 'truck' || (!forceType && Math.random() < 0.3);
+  spawnVehicle: (forceType?: VehicleType, isStalled?: boolean) => set((state) => {
+    // Determine vehicle type
+    const vehicleType: VehicleType = forceType || (Math.random() < 0.3 ? 'truck' : 'car');
+    
+    // PHANTOM SHIELD: Stalled vehicle (Ghost Truck)
+    if (isStalled) {
+      notify('crash', '⚠️ PHANTOM SHIELD', 'Unlit stationary truck detected. Activating hazard corridor behind.');
+      return {
+        vehicles: [...state.vehicles, {
+          id: Date.now() + Math.random(),
+          x_pos: 75 + Math.random() * 10, // 75-85% position (far down the highway)
+          speed: 0, // Stalled!
+          lane: 1, // Slow lane (shoulder/breakdown lane)
+          type: 'truck' as VehicleType,
+        }],
+      };
+    }
+    
+    // Ambulance: Golden Hour Protocol - priority emergency vehicle
+    if (vehicleType === 'ambulance') {
+      notify('crash', '🚑 GOLDEN HOUR PROTOCOL', 'Emergency corridor activated. Clearing fast lane ahead.');
+      return {
+        vehicles: [...state.vehicles, {
+          id: Date.now() + Math.random(),
+          x_pos: 0,
+          speed: 200 + Math.random() * 40, // 200-240 km/h (1.5x normal traffic)
+          lane: 2, // Fast lane always
+          type: 'ambulance' as VehicleType,
+        }],
+      };
+    }
+    
+    const isTruck = vehicleType === 'truck';
     const newVehicle: Vehicle = {
       id: Date.now() + Math.random(),
       x_pos: 0,
       speed: isTruck ? 80 + Math.random() * 60 : 160 + Math.random() * 80, // Trucks: 80-140, Cars: 160-240
       lane: isTruck ? 1 : (Math.random() > 0.5 ? 1 : 2),
-      type: isTruck ? 'truck' : 'car',
+      type: vehicleType,
     };
 
     return {
@@ -761,7 +907,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       vehicles: [], // Clear traffic (2D view)
       geoVehicles: [], // Clear geo traffic (map view)
       env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0 },
+      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0 },
       powerHistory: [], // Clear history on reset
       autoTraffic: false, // Reset auto-traffic (2D)
       autoGeoTraffic: true, // Keep auto-geo-traffic enabled

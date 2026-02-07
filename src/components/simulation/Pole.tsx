@@ -14,7 +14,10 @@ export const Pole = ({ data }: { data: PoleType }) => {
   const getBulbColor = () => {
     if (data.brightness === 0) return 'bg-slate-800';
     if (data.status === 'CRASH') return 'bg-red-600 shadow-[0_0_20px_#dc2626]';
-    if (data.status === 'WARNING') return 'bg-orange-500 shadow-[0_0_20px_#f97316]';
+    if (data.status === 'WARNING' && data.mode !== 'HAZARD_RED') return 'bg-orange-500 shadow-[0_0_20px_#f97316]';
+    if (data.mode === 'HAZARD_RED') return 'bg-red-600 shadow-[0_0_28px_#dc2626]';
+    if (data.mode === 'SPOTLIGHT_WHITE') return 'bg-white shadow-[0_0_32px_#ffffff]';
+    if (data.mode === 'CORRIDOR_BLUE') return 'bg-blue-500 shadow-[0_0_24px_#3b82f6]';
     if (data.mode === 'BATTERY') return 'bg-orange-400/70 shadow-[0_0_12px_#fb923c]';
     if (data.mode === 'FOG_AMBER') return 'bg-amber-500 shadow-[0_0_20px_#f59e0b]';
     if (data.mode === 'ECO_DIM') return 'bg-cyan-300/60 shadow-[0_0_12px_#67e8f9]';
@@ -60,6 +63,27 @@ export const Pole = ({ data }: { data: PoleType }) => {
         opacity: 0.8,
       };
     }
+    // CORRIDOR_BLUE: Golden Hour Protocol - Emergency ambulance corridor
+    if (data.mode === 'CORRIDOR_BLUE') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(59,130,246,${Math.min(1, 1.3 * b)}) 0%, rgba(59,130,246,${0.7 * b}) 45%, rgba(59,130,246,${0.2 * b}) 70%, transparent 85%)`,
+        opacity: 1,
+      };
+    }
+    // HAZARD_RED: Phantom Shield - Slow, heavy warning pulse like a lighthouse
+    if (data.mode === 'HAZARD_RED') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(220,38,38,${Math.min(1, 1.4 * b)}) 0%, rgba(220,38,38,${0.8 * b}) 40%, rgba(220,38,38,${0.3 * b}) 65%, transparent 80%)`,
+        opacity: 1,
+      };
+    }
+    // SPOTLIGHT_WHITE: Phantom Shield - Focused beam illuminating obstacle
+    if (data.mode === 'SPOTLIGHT_WHITE') {
+      return {
+        background: `radial-gradient(ellipse 50% 80% at center, rgba(255,255,255,${Math.min(1, 1.5 * b)}) 0%, rgba(255,255,255,${0.9 * b}) 30%, rgba(255,255,255,${0.4 * b}) 55%, transparent 70%)`,
+        opacity: 1,
+      };
+    }
 
     // STANDARD MODE: dramatic glow that reacts to vehicle proximity (brightness 80→100)
     return {
@@ -77,11 +101,21 @@ export const Pole = ({ data }: { data: PoleType }) => {
         className="absolute -bottom-20 w-40 h-40 pointer-events-none rounded-full blur-xl"
         style={{ ...getLightConeStyle(), transition: 'background 0.7s ease-in-out, opacity 0.7s ease-in-out' }}
         animate={
-          data.mode === 'EMERGENCY_PULSE' 
+          data.mode === 'CORRIDOR_BLUE'
+            ? { opacity: [0.3, 1, 0.3] } // Rapid strobe for ambulance corridor
+            : data.mode === 'HAZARD_RED'
+            ? { opacity: [0.4, 1, 0.4] } // Slow, heavy pulse like lighthouse warning
+            : data.mode === 'SPOTLIGHT_WHITE'
+            ? { opacity: [0.9, 1, 0.9] } // Steady bright beam with subtle pulse
+            : data.mode === 'EMERGENCY_PULSE' 
             ? { opacity: [0.2, 0.8, 0.2] } 
             : {}
         }
-        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ 
+          duration: data.mode === 'CORRIDOR_BLUE' ? 0.5 : data.mode === 'HAZARD_RED' ? 2.5 : data.mode === 'SPOTLIGHT_WHITE' ? 1.0 : 1.5,
+          repeat: Infinity, 
+          ease: "easeInOut" 
+        }}
       />
 
       {/* 2. TURBINE - Wind Energy Harvester (spins based on wind speed) */}
@@ -118,6 +152,9 @@ export const Pole = ({ data }: { data: PoleType }) => {
           <div className={cn(
             "absolute inset-1 rounded-full blur-sm",
             data.status === 'CRASH' ? 'bg-red-400' :
+            data.mode === 'HAZARD_RED' ? 'bg-red-400' :
+            data.mode === 'SPOTLIGHT_WHITE' ? 'bg-white' :
+            data.mode === 'CORRIDOR_BLUE' ? 'bg-blue-400' :
             data.mode === 'BATTERY' ? 'bg-orange-300' :
             data.mode === 'FOG_AMBER' ? 'bg-amber-300' :
             'bg-cyan-200'
