@@ -3,7 +3,7 @@
 import { useSimulationStore } from '@/lib/store';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Activity, Pause, Play } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * PowerGraph - Real-time Power Consumption Telemetry
@@ -41,6 +41,13 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { valu
 export const PowerGraph = () => {
   const { powerHistory } = useSimulationStore();
   const [isPaused, setIsPaused] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  
+  // Wait for container to mount and have dimensions before rendering chart
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Get latest reading for display
   const latestReading = powerHistory.length > 0 ? powerHistory[powerHistory.length - 1].value : 0;
@@ -64,8 +71,8 @@ export const PowerGraph = () => {
 
       {/* Graph */}
       <div className="flex-1 min-h-0">
-        {powerHistory.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+        {isReady && powerHistory.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart
               data={powerHistory}
               margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
