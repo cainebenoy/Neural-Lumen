@@ -1,6 +1,18 @@
 {
   "name": "neural-lumen",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "AI-Powered Smart Highway Lighting System - NHAI Hackathon 2025 Submission",
+  "keywords": [
+    "smart-highway",
+    "iot-simulation",
+    "traffic-prediction",
+    "tensorflow",
+    "mapbox",
+    "energy-optimization",
+    "nhai-hackathon"
+  ],
+  "author": "Neural-Lumen Team",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,6 +21,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.33.0",
     "leaflet": "^1.9.4",
