@@ -51,15 +51,23 @@ export const Highway = () => {
         ))}
       </div>
 
-      {/* KINETIC TRAFFIC - Autonomous Vehicles (Cars & Trucks) */}
+      {/* KINETIC TRAFFIC - Autonomous Vehicles (Cars, Trucks, Ambulances & Ghost Trucks) */}
       <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none">
         {vehicles.map((vehicle) => {
           // Lane positioning: Lane 1 (35%) vs Lane 2 (55%)
           const bottomOffset = vehicle.lane === 1 ? 35 : 55;
           const isTruck = vehicle.type === 'truck';
+          const isAmbulance = vehicle.type === 'ambulance';
+          const isStalled = vehicle.speed === 0; // Ghost Truck - Phantom Shield
 
+          // Ghost Truck: Dark grey, no glow (unlit, dangerous)
+          // Ambulance: white body with emergency styling
           // Truck: amber/orange, wider | Car: cyan/rose by lane, smaller
-          const vehicleClasses = isTruck
+          const vehicleClasses = isStalled
+            ? 'w-8 h-3.5 bg-slate-700 rounded border-slate-600 z-40' // Dark, unlit truck
+            : isAmbulance
+            ? 'w-8 h-3.5 bg-white rounded z-50'
+            : isTruck
             ? 'w-7 h-3 bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] rounded'
             : vehicle.lane === 1
               ? 'w-4 h-2 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] rounded-sm'
@@ -69,26 +77,83 @@ export const Highway = () => {
             <motion.div
               key={vehicle.id}
               className={`absolute ${vehicleClasses} border border-white/30 pointer-events-auto`}
-              animate={{
+              animate={isAmbulance ? {
+                left: `${vehicle.x_pos}%`,
+                bottom: `${bottomOffset}%`,
+                scale: 1,
+                opacity: 1,
+                boxShadow: [
+                  '0 0 20px rgba(239,68,68,0.9), 0 0 40px rgba(239,68,68,0.5)',
+                  '0 0 20px rgba(59,130,246,0.9), 0 0 40px rgba(59,130,246,0.5)',
+                  '0 0 20px rgba(239,68,68,0.9), 0 0 40px rgba(239,68,68,0.5)',
+                ],
+              } : {
                 left: `${vehicle.x_pos}%`,
                 bottom: `${bottomOffset}%`,
                 scale: 1,
                 opacity: 1,
               }}
-              initial={{ left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }}
+              initial={isStalled 
+                ? { left: `${vehicle.x_pos}%`, bottom: `${bottomOffset}%`, scale: 1, opacity: 1 }
+                : { left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }
+              }
               exit={{ scale: 0, opacity: 0 }}
-              transition={{ 
+              transition={isAmbulance ? { 
+                left: { duration: 0.2, ease: "linear" },
+                bottom: { duration: 0.2, ease: "linear" },
+                scale: { duration: 0.3 },
+                opacity: { duration: 0.3 },
+                boxShadow: { duration: 0.4, repeat: Infinity, ease: "easeInOut" },
+              } : { 
                 left: { duration: 0.2, ease: "linear" },
                 bottom: { duration: 0.2, ease: "linear" },
                 scale: { duration: 0.3 },
                 opacity: { duration: 0.3 },
               }}
             >
-              {/* Headlight glow */}
-              <div className={`absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full blur-sm ${isTruck ? 'bg-amber-200' : 'bg-yellow-300'}`} />
+              {/* Ghost Truck: Warning Icon - No headlights, broken down */}
+              {isStalled && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-amber-500 text-sm font-bold animate-pulse">
+                  ⚠
+                </div>
+              )}
+
+              {/* Ambulance: Red Cross & Siren Lights */}
+              {isAmbulance && (
+                <>
+                  {/* Red Cross Symbol */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative w-3 h-3">
+                      <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-600 -translate-y-1/2" />
+                      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-600 -translate-x-1/2" />
+                    </div>
+                  </div>
+                  {/* Siren Light Bar */}
+                  <motion.div 
+                    className="absolute -top-1 left-1 right-1 h-1 rounded-full flex justify-between"
+                    animate={{ opacity: 1 }}
+                  >
+                    <motion.div 
+                      className="w-1.5 h-1 rounded-full bg-red-500"
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 0.3, repeat: Infinity }}
+                    />
+                    <motion.div 
+                      className="w-1.5 h-1 rounded-full bg-blue-500"
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 0.3, repeat: Infinity }}
+                    />
+                  </motion.div>
+                </>
+              )}
+
+              {/* Headlight glow - NOT shown on stalled (ghost) trucks */}
+              {!isStalled && (
+                <div className={`absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full blur-sm ${isAmbulance ? 'bg-white' : isTruck ? 'bg-amber-200' : 'bg-yellow-300'}`} />
+              )}
               
-              {/* Truck: extra rear marker lights */}
-              {isTruck && (
+              {/* Truck: extra rear marker lights - NOT shown on stalled trucks */}
+              {isTruck && !isStalled && (
                 <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-red-500 rounded-full blur-sm" />
               )}
 
