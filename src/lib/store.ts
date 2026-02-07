@@ -1,4 +1,11 @@
 import { create } from 'zustand';
+import { 
+  initializePredictor, 
+  predictSpawnRate, 
+  getPredictionWithConfidence, 
+  getModelStatus,
+  disposePredictor 
+} from './trafficPredictor';
 
 /**
  * Neural-Lumen Digital Twin Store
@@ -108,6 +115,17 @@ interface SimulationState {
   autoGeoTraffic: boolean; // Auto-spawn vehicles on map
   gridFailure: boolean; // Grid failure mode (battery backup)
   _tickCount: number; // Internal tick counter for throttling (not displayed)
+  // ML Traffic Prediction
+  mlPrediction: {
+    enabled: boolean; // Whether ML prediction is active
+    isTraining: boolean; // Model training status
+    isReady: boolean; // Model ready for inference
+    spawnRate: number; // Current predicted spawn rate (0-1)
+    confidence: number; // Model confidence (0-100%)
+    epochs: number; // Training epochs completed
+    loss: number; // Current loss value
+    prediction24h: number[]; // 24-hour forecast
+  };
   // Actions
   toggleFog: () => void;
   triggerCrash: (id: number) => void;
@@ -124,6 +142,10 @@ interface SimulationState {
   toggleAutoGeoTraffic: () => void;
   triggerGridFailure: () => void;
   spawnAnimal: (type?: AnimalType) => void;
+  // ML Prediction Actions
+  initializeMLPredictor: () => Promise<void>;
+  updateMLPrediction: () => void;
+  toggleMLPrediction: () => void;
 }
 
 // Initialize poles for the highway network
@@ -193,6 +215,16 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   autoGeoTraffic: true, // Auto-spawn enabled for map view by default
   gridFailure: false, // Grid is operational
   _tickCount: 0,
+  mlPrediction: {
+    enabled: false,
+    isTraining: false,
+    isReady: false,
+    spawnRate: 0.15,
+    confidence: 0,
+    epochs: 0,
+    loss: 1.0,
+    prediction24h: Array(24).fill(0.15),
+  },
 
   /**
    * FOG MODE: Switches all poles to 'FOG_AMBER' mode
@@ -461,10 +493,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       }
     }
 
-    // AUTO-TRAFFIC: Spawn vehicles automatically with ~0.6% chance per tick
-    // At 5 ticks/sec, this creates roughly 1 vehicle every 30-35 seconds
+    // AUTO-TRAFFIC: Spawn vehicles automatically
+    // Uses ML prediction when enabled, otherwise fixed 0.6% chance per tick
     let vehiclesToUpdate = state.vehicles;
-    if (state.autoTraffic && Math.random() < 0.006) {
+    const mlSpawnChance = state.mlPrediction.enabled && state.mlPrediction.isReady
+      ? state.mlPrediction.spawnRate * 0.02 // Scale ML rate (0-1) to spawn chance (0-0.02)
+      : 0.006; // Default fixed chance
+    
+    if (state.autoTraffic && Math.random() < mlSpawnChance) {
       const isTruck = Math.random() < 0.3; // 30% chance of truck
       const newVehicle: Vehicle = {
         id: Date.now() + Math.random(),
@@ -476,9 +512,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       vehiclesToUpdate = [...state.vehicles, newVehicle];
     }
 
-    // AUTO-GEO-TRAFFIC: Spawn vehicles on map routes (higher frequency for dense traffic)
+    // AUTO-GEO-TRAFFIC: Spawn vehicles on map routes
+    // Uses ML prediction when enabled for realistic traffic density
     let geoVehiclesToUpdate = state.geoVehicles;
-    if (state.autoGeoTraffic && Math.random() < 0.15) { // 15% chance = ~0.75 vehicles/sec = 45/min
+    const geoMlSpawnChance = state.mlPrediction.enabled && state.mlPrediction.isReady
+      ? state.mlPrediction.spawnRate * 0.3 // Scale ML rate to geo spawn chance (0-0.3)
+      : 0.15; // Default fixed chance
+    
+    if (state.autoGeoTraffic && Math.random() < geoMlSpawnChance) {
       const routeIndex = Math.floor(Math.random() * 5); // Random route (0-4)
       const isTruck = Math.random() < 0.25; // 25% trucks
       const newGeoVehicle: GeoVehicle = {
@@ -858,6 +899,21 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       geoVehicles: updatedGeoVehicles,
       animals: updatedAnimals,
       _tickCount: tickCount,
+      // Update ML prediction every second (every 5 ticks) when enabled
+      ...(state.mlPrediction.enabled && state.mlPrediction.isReady && tickCount % 5 === 0 ? {
+        mlPrediction: (() => {
+          const hour = Math.floor(state.env.time / 100);
+          const dayOfWeek = new Date().getDay();
+          const isRainOrSnow = state.env.weather === 'RAIN' || state.env.weather === 'SNOW';
+          const prediction = getPredictionWithConfidence(hour, dayOfWeek, isRainOrSnow);
+          return {
+            ...state.mlPrediction,
+            spawnRate: prediction.spawnRate,
+            confidence: prediction.confidence,
+            prediction24h: prediction.prediction24h,
+          };
+        })()
+      } : {}),
     };
   }),
 
@@ -1105,6 +1161,118 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     };
   }),
 
+  /**
+   * INITIALIZE ML PREDICTOR: Train the LSTM model for traffic prediction
+   * This should be called once when the application starts
+   */
+  initializeMLPredictor: async () => {
+    const { mlPrediction, updateMLPrediction } = useSimulationStore.getState();
+    
+    // Don't re-initialize if already training or ready
+    if (mlPrediction.isTraining || mlPrediction.isReady) {
+      return;
+    }
+    
+    // Set training status
+    useSimulationStore.setState({
+      mlPrediction: {
+        ...mlPrediction,
+        isTraining: true,
+        enabled: true,
+      },
+    });
+    
+    notify('info', '🧠 ML TRAINING STARTED', 'Neural network training on historical traffic patterns...');
+    
+    try {
+      await initializePredictor((epoch, loss) => {
+        // Update progress during training
+        useSimulationStore.setState((s) => ({
+          mlPrediction: {
+            ...s.mlPrediction,
+            epochs: epoch,
+            loss,
+          },
+        }));
+      });
+      
+      const modelStatus = getModelStatus();
+      
+      // Training complete - update state
+      useSimulationStore.setState((s) => ({
+        mlPrediction: {
+          ...s.mlPrediction,
+          isTraining: false,
+          isReady: modelStatus.isReady,
+          confidence: modelStatus.confidence,
+          epochs: modelStatus.epochs,
+          loss: modelStatus.loss,
+        },
+      }));
+      
+      notify('success', '🧠 ML MODEL READY', `DNN trained: ${modelStatus.epochs} epochs, ${modelStatus.confidence.toFixed(1)}% confidence`);
+      
+      // Trigger initial prediction
+      updateMLPrediction();
+      
+    } catch (error) {
+      console.error('ML initialization failed:', error);
+      useSimulationStore.setState((s) => ({
+        mlPrediction: {
+          ...s.mlPrediction,
+          isTraining: false,
+          isReady: false,
+        },
+      }));
+      notify('crash', 'ML TRAINING FAILED', 'Falling back to heuristic spawn rates.');
+    }
+  },
+
+  /**
+   * UPDATE ML PREDICTION: Get current spawn rate prediction based on time/weather
+   * Called automatically during tick() when ML is enabled
+   */
+  updateMLPrediction: () => set((state) => {
+    if (!state.mlPrediction.enabled) return {};
+    
+    // Convert simulation time to hour (0-23)
+    const hour = Math.floor(state.env.time / 100);
+    const dayOfWeek = new Date().getDay(); // Use actual day of week
+    const isRainOrSnow = state.env.weather === 'RAIN' || state.env.weather === 'SNOW';
+    
+    // Get prediction with confidence and 24h forecast
+    const prediction = getPredictionWithConfidence(hour, dayOfWeek, isRainOrSnow);
+    
+    return {
+      mlPrediction: {
+        ...state.mlPrediction,
+        spawnRate: prediction.spawnRate,
+        confidence: prediction.confidence,
+        prediction24h: prediction.prediction24h,
+      },
+    };
+  }),
+
+  /**
+   * TOGGLE ML PREDICTION: Enable/disable ML-based spawn rate optimization
+   */
+  toggleMLPrediction: () => set((state) => {
+    const newEnabled = !state.mlPrediction.enabled;
+    
+    if (newEnabled) {
+      notify('info', '🧠 ML PREDICTION ENABLED', 'Traffic spawn rates now controlled by neural network.');
+    } else {
+      notify('info', '🧠 ML PREDICTION DISABLED', 'Reverting to fixed spawn rates.');
+    }
+    
+    return {
+      mlPrediction: {
+        ...state.mlPrediction,
+        enabled: newEnabled,
+      },
+    };
+  }),
+
   reset: () => {
     // Show notification
     notify('success', 'System Reset', 'All parameters restored to defaults.');
@@ -1124,6 +1292,16 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       autoGeoTraffic: true, // Keep auto-geo-traffic enabled
       gridFailure: false, // Reset grid
       _tickCount: 0,
+      mlPrediction: {
+        enabled: false,
+        isTraining: false,
+        isReady: false,
+        spawnRate: 0.15,
+        confidence: 0,
+        epochs: 0,
+        loss: 1.0,
+        prediction24h: Array(24).fill(0.15),
+      },
     });
   }
 }));
