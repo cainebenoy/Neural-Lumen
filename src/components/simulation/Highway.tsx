@@ -11,6 +11,7 @@ export const Highway = () => {
   // Use individual selectors to avoid unnecessary re-renders on every state change
   const poles = useSimulationStore((state) => state.poles);
   const vehicles = useSimulationStore((state) => state.vehicles);
+  const animals = useSimulationStore((state) => state.animals);
   const env = useSimulationStore((state) => state.env);
 
   return (
@@ -190,6 +191,91 @@ export const Highway = () => {
               {vehicle.speed > 160 && (
                 <div className="absolute -right-3 top-0 bottom-0 w-2 bg-gradient-to-r from-current to-transparent opacity-60" />
               )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* BIO-SHIELD: Wildlife Crossing Detection */}
+      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none">
+        {animals.map((animal) => {
+          // Animals crossing at road level (middle of road)
+          const bottomOffset = 45; // Center of road
+          
+          // Animal icons by type (using emoji for simplicity)
+          const animalEmoji = animal.type === 'DEER' ? '🦌' 
+            : animal.type === 'ELEPHANT' ? '🐘' 
+            : '🐆'; // LEOPARD
+          
+          // Size based on animal type
+          const sizeClass = animal.type === 'ELEPHANT' ? 'text-3xl' 
+            : animal.type === 'DEER' ? 'text-2xl' 
+            : 'text-xl';
+
+          return (
+            <motion.div
+              key={animal.id}
+              className="absolute pointer-events-auto z-40"
+              animate={{
+                left: `${animal.x_pos}%`,
+                bottom: `${bottomOffset}%`,
+                scale: 1,
+                opacity: 1,
+              }}
+              initial={{ 
+                left: `${animal.x_pos}%`, 
+                bottom: `${bottomOffset}%`, 
+                scale: 0.5, 
+                opacity: 0 
+              }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ 
+                left: { duration: 0.2, ease: "linear" },
+                bottom: { duration: 0.2 },
+                scale: { duration: 0.5 },
+                opacity: { duration: 0.5 },
+              }}
+            >
+              {/* Thermal Signature Ring - Infrared detection visual */}
+              <motion.div
+                className="absolute inset-0 -m-3 rounded-full border-2 border-orange-500/60"
+                animate={{
+                  scale: [1, 1.4, 1],
+                  opacity: [0.8, 0.3, 0.8],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+              
+              {/* Secondary Thermal Ring */}
+              <motion.div
+                className="absolute inset-0 -m-5 rounded-full border border-orange-400/30"
+                animate={{
+                  scale: [1.2, 1.6, 1.2],
+                  opacity: [0.5, 0.1, 0.5],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.3,
+                }}
+              />
+              
+              {/* Animal Icon */}
+              <span className={`${sizeClass} drop-shadow-[0_0_8px_rgba(251,146,60,0.8)]`}>
+                {animalEmoji}
+              </span>
+              
+              {/* BIO-SHIELD Label */}
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                <span className="text-[8px] font-bold text-emerald-400 bg-black/60 px-1 rounded">
+                  BIO-SHIELD
+                </span>
+              </div>
             </motion.div>
           );
         })}

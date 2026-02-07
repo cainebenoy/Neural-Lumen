@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle, Ban } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle, Ban, Trees } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 import { Analytics } from './Analytics';
 import { EventLog } from '@/components/ui/EventLog';
@@ -29,6 +29,7 @@ export const Sidebar = () => {
     spawnGeoTrafficBurst,
     toggleAutoGeoTraffic,
     triggerGridFailure,
+    spawnAnimal,
     reset
   } = useSimulationStore();
 
@@ -401,6 +402,20 @@ export const Sidebar = () => {
 
             <p className="text-[8px] text-slate-600 font-mono text-center">
               Target Lock + Stop Barrier — Infrastructure as Immune System
+            </p>
+
+            {/* Wildlife Crossing Button - Bio-Shield */}
+            <button 
+              onClick={() => spawnAnimal()}
+              title="Thermal camera detects wildlife crossing — Anti-glare + driver warning activated"
+              className="w-full h-14 bg-gradient-to-b from-black to-slate-950 border-2 border-emerald-600 text-emerald-400 font-bold rounded hover:from-slate-900 hover:to-black hover:border-emerald-500 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-[0_4px_0_#064e3b,0_6px_12px_rgba(0,0,0,0.8),0_0_16px_rgba(16,185,129,0.2)]"
+            >
+              <Trees size={20} className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+              <span className="text-xs tracking-[0.15em]">WILDLIFE CROSSING</span>
+            </button>
+
+            <p className="text-[8px] text-slate-600 font-mono text-center">
+              Bio-Shield — Wildlife-safe dimming + Violet driver warning
             </p>
           </div>
         </div>

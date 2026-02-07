@@ -19,6 +19,8 @@ export const Pole = ({ data }: { data: PoleType }) => {
     if (data.mode === 'SPOTLIGHT_WHITE') return 'bg-white shadow-[0_0_32px_#ffffff]';
     if (data.mode === 'INTERCEPT_STROBE') return 'bg-red-500 shadow-[0_0_40px_#ef4444]'; // Violent strobe
     if (data.mode === 'STOP_BARRIER') return 'bg-red-700 shadow-[0_0_24px_#b91c1c]'; // Solid deep red
+    if (data.mode === 'BIO_DARK') return 'bg-red-900/20 shadow-none'; // Almost invisible - protect animal vision
+    if (data.mode === 'WILDLIFE_VIOLET') return 'bg-violet-500 shadow-[0_0_28px_#8b5cf6]'; // Purple wildlife warning
     if (data.mode === 'CORRIDOR_BLUE') return 'bg-blue-500 shadow-[0_0_24px_#3b82f6]';
     if (data.mode === 'BATTERY') return 'bg-orange-400/70 shadow-[0_0_12px_#fb923c]';
     if (data.mode === 'FOG_AMBER') return 'bg-amber-500 shadow-[0_0_20px_#f59e0b]';
@@ -100,6 +102,20 @@ export const Pole = ({ data }: { data: PoleType }) => {
         opacity: 1,
       };
     }
+    // BIO_DARK: Bio-Shield - Almost invisible to not blind wildlife
+    if (data.mode === 'BIO_DARK') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(127,29,29,${0.1 * b}) 0%, rgba(127,29,29,${0.05 * b}) 40%, transparent 60%)`,
+        opacity: 0.1,
+      };
+    }
+    // WILDLIFE_VIOLET: Bio-Shield - Purple warning glow for drivers
+    if (data.mode === 'WILDLIFE_VIOLET') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(139,92,246,${Math.min(1, 1.2 * b)}) 0%, rgba(139,92,246,${0.7 * b}) 45%, rgba(139,92,246,${0.25 * b}) 70%, transparent 85%)`,
+        opacity: 1,
+      };
+    }
 
     // STANDARD MODE: dramatic glow that reacts to vehicle proximity (brightness 80→100)
     return {
@@ -127,12 +143,16 @@ export const Pole = ({ data }: { data: PoleType }) => {
             ? { opacity: [0.9, 1, 0.9] } // Steady bright beam with subtle pulse
             : data.mode === 'STOP_BARRIER'
             ? {} // No animation - solid static red
+            : data.mode === 'WILDLIFE_VIOLET'
+            ? { opacity: [0.5, 1, 0.5] } // Slow mysterious pulse for wildlife warning
+            : data.mode === 'BIO_DARK'
+            ? {} // No animation - dim and still to not startle animals
             : data.mode === 'EMERGENCY_PULSE' 
             ? { opacity: [0.2, 0.8, 0.2] } 
             : {}
         }
         transition={{ 
-          duration: data.mode === 'INTERCEPT_STROBE' ? 0.15 : data.mode === 'CORRIDOR_BLUE' ? 0.5 : data.mode === 'HAZARD_RED' ? 2.5 : data.mode === 'SPOTLIGHT_WHITE' ? 1.0 : 1.5,
+          duration: data.mode === 'INTERCEPT_STROBE' ? 0.15 : data.mode === 'CORRIDOR_BLUE' ? 0.5 : data.mode === 'HAZARD_RED' ? 2.5 : data.mode === 'SPOTLIGHT_WHITE' ? 1.0 : data.mode === 'WILDLIFE_VIOLET' ? 3.0 : 1.5,
           repeat: Infinity, 
           ease: "easeInOut" 
         }}
@@ -174,6 +194,8 @@ export const Pole = ({ data }: { data: PoleType }) => {
             data.status === 'CRASH' ? 'bg-red-400' :
             data.mode === 'INTERCEPT_STROBE' ? 'bg-white' : // Alternates with red
             data.mode === 'STOP_BARRIER' ? 'bg-red-500' :
+            data.mode === 'BIO_DARK' ? 'bg-red-900/10' : // Almost invisible for animal protection
+            data.mode === 'WILDLIFE_VIOLET' ? 'bg-violet-400' : // Purple warning glow
             data.mode === 'HAZARD_RED' ? 'bg-red-400' :
             data.mode === 'SPOTLIGHT_WHITE' ? 'bg-white' :
             data.mode === 'CORRIDOR_BLUE' ? 'bg-blue-400' :

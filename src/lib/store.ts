@@ -35,9 +35,10 @@ const notify = (type: 'crash' | 'weather' | 'grid' | 'info' | 'success', title: 
 };
 
 // TypeScript Interfaces
-export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY' | 'CORRIDOR_BLUE' | 'HAZARD_RED' | 'SPOTLIGHT_WHITE' | 'INTERCEPT_STROBE' | 'STOP_BARRIER';
+export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY' | 'CORRIDOR_BLUE' | 'HAZARD_RED' | 'SPOTLIGHT_WHITE' | 'INTERCEPT_STROBE' | 'STOP_BARRIER' | 'BIO_DARK' | 'WILDLIFE_VIOLET';
 export type PoleStatus = 'ACTIVE' | 'CRASH' | 'WARNING';
 export type WeatherType = 'CLEAR' | 'RAIN' | 'SNOW';
+export type AnimalType = 'DEER' | 'ELEPHANT' | 'LEOPARD';
 
 export interface Pole {
   id: number;
@@ -72,10 +73,19 @@ export interface GeoVehicle {
   lane: number; // 1 or 2 for offset
 }
 
+// Wildlife crossing detection
+export interface Animal {
+  id: number;
+  x_pos: number; // Position along highway (0-100%)
+  type: AnimalType;
+  speed: number; // Very slow movement (0.1 = nearly static)
+}
+
 interface SimulationState {
   poles: Pole[];
   vehicles: Vehicle[]; // Traffic physics simulation (2D highway view)
   geoVehicles: GeoVehicle[]; // Geographic vehicles (map view)
+  animals: Animal[]; // Wildlife crossing detection
   env: {
     fog: boolean;
     windSpeed: number; // km/h
@@ -91,6 +101,7 @@ interface SimulationState {
     livesSaved: number; // Golden Hour Protocol impact
     accidentsPrevented: number; // Phantom Shield impact
     interceptsCount: number; // Neural Intercept wrong-way driver stops
+    wildlifeSaved: number; // Bio-Shield wildlife protection
   };
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
   autoTraffic: boolean; // Auto-spawn vehicles (2D view)
@@ -112,6 +123,7 @@ interface SimulationState {
   spawnGeoTrafficBurst: () => void;
   toggleAutoGeoTraffic: () => void;
   triggerGridFailure: () => void;
+  spawnAnimal: (type?: AnimalType) => void;
 }
 
 // Initialize poles for the highway network
@@ -173,8 +185,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   poles: generatePoles(2000),
   vehicles: [], // Traffic simulation starts empty (2D view)
   geoVehicles: [], // Geographic vehicles (map view)
+  animals: [], // Wildlife crossing detection
   env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0, interceptsCount: 0 },
+  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0, interceptsCount: 0, wildlifeSaved: 0 },
   powerHistory: [], // Start with empty history
   autoTraffic: false, // Auto-spawn disabled by default (2D view)
   autoGeoTraffic: true, // Auto-spawn enabled for map view by default
@@ -599,6 +612,48 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       });
     }
 
+    // BIO-SHIELD: Check for wildlife crossings
+    // Update animal positions (very slow movement)
+    const updatedAnimals = state.animals
+      .map(animal => ({
+        ...animal,
+        x_pos: animal.x_pos + animal.speed, // Very slow crossing
+      }))
+      .filter(animal => animal.x_pos <= 100); // Remove animals that completed crossing
+
+    // Detect active wildlife on the road
+    let bioDarkPoleId: number | null = null;
+    const wildlifeVioletPoleIds: Set<number> = new Set();
+    
+    if (updatedAnimals.length > 0) {
+      const animal = updatedAnimals[0]; // Focus on first animal
+      const animalPosition = animal.x_pos; // 0-100%
+      
+      // Find the pole closest to the animal (BIO_DARK - Anti-glare protection)
+      let minDistance = Infinity;
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        const distance = Math.abs(polePosition - animalPosition);
+        if (distance < minDistance) {
+          minDistance = distance;
+          bioDarkPoleId = pole.id;
+        }
+      });
+      
+      // Find 5 poles BEFORE and AFTER the animal (WILDLIFE_VIOLET warning zones)
+      const warningStartPercent = animalPosition - 5; // 5% before (~500m)
+      const warningEndPercent = animalPosition + 5; // 5% after (~500m)
+      
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        // Warning zone before and after, excluding the animal's direct position
+        if ((polePosition >= warningStartPercent && polePosition < animalPosition - 0.5) ||
+            (polePosition > animalPosition + 0.5 && polePosition <= warningEndPercent)) {
+          wildlifeVioletPoleIds.add(pole.id);
+        }
+      });
+    }
+
     // RADAR DETECTION LOGIC
     // Each pole covers ~5% of the highway (20 poles = 100%)
     const updatedPoles = state.poles.map((pole, index) => {
@@ -652,12 +707,34 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         };
       }
       
+      // BIO-SHIELD: Anti-glare mode directly above wildlife
+      if (bioDarkPoleId === pole.id) {
+        return {
+          ...pole,
+          mode: 'BIO_DARK' as PoleMode,
+          brightness: 10, // Almost off - prevent blinding animals
+          status: 'OK' as PoleStatus,
+        };
+      }
+      
+      // BIO-SHIELD: Warning zone for approaching drivers
+      if (wildlifeVioletPoleIds.has(pole.id)) {
+        return {
+          ...pole,
+          mode: 'WILDLIFE_VIOLET' as PoleMode,
+          brightness: 80,
+          status: 'WARNING' as PoleStatus,
+        };
+      }
+      
       // Reset special modes back to normal when no longer needed
       if ((pole.mode === 'CORRIDOR_BLUE' && !ambulanceCorridorPoleIds.has(pole.id)) ||
           (pole.mode === 'HAZARD_RED' && !hazardRedPoleIds.has(pole.id)) ||
           (pole.mode === 'SPOTLIGHT_WHITE' && spotlightPoleId !== pole.id) ||
           (pole.mode === 'INTERCEPT_STROBE' && interceptStrobePoleId !== pole.id) ||
-          (pole.mode === 'STOP_BARRIER' && !stopBarrierPoleIds.has(pole.id))) {
+          (pole.mode === 'STOP_BARRIER' && !stopBarrierPoleIds.has(pole.id)) ||
+          (pole.mode === 'BIO_DARK' && bioDarkPoleId !== pole.id) ||
+          (pole.mode === 'WILDLIFE_VIOLET' && !wildlifeVioletPoleIds.has(pole.id))) {
         const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
         const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
         let resetMode: PoleMode = 'STANDARD';
@@ -765,6 +842,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         accidentsPrevented: state.metrics.accidentsPrevented + (stalledVehicle ? 0.003 : 0),
         // Neural Intercept: Track active intercept (already counted on spawn, maintain current value)
         interceptsCount: state.metrics.interceptsCount,
+        // Bio-Shield: Track wildlife saved (count animals that completed crossing)
+        wildlifeSaved: state.metrics.wildlifeSaved + (state.animals.length - updatedAnimals.length),
       },
       poles: updatedPoles.map(p => ({
         ...p,
@@ -773,6 +852,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       powerHistory: updatedHistory,
       vehicles: updatedVehicles,
       geoVehicles: updatedGeoVehicles,
+      animals: updatedAnimals,
       _tickCount: tickCount,
     };
   }),
@@ -973,6 +1053,28 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     return { gridFailure: newGridState, poles: newPoles };
   }),
 
+  /**
+   * SPAWN ANIMAL: Wildlife crossing detection (Bio-Shield)
+   * Simulates thermal camera detection of wildlife on the highway
+   * Triggers BIO_DARK (dim) for animal zone and WILDLIFE_VIOLET for warning zones
+   */
+  spawnAnimal: (type?: AnimalType) => set((state) => {
+    const animalType: AnimalType = type || (Math.random() < 0.5 ? 'DEER' : Math.random() < 0.7 ? 'ELEPHANT' : 'LEOPARD');
+    
+    notify('info', '🦌 BIO-SHIELD ACTIVATED', `${animalType} detected crossing highway. Anti-glare protection enabled.`);
+    
+    const newAnimal: Animal = {
+      id: Date.now() + Math.random(),
+      x_pos: 40 + Math.random() * 20, // 40-60% position (middle of highway)
+      type: animalType,
+      speed: 0.05 + Math.random() * 0.1, // Very slow movement (0.05-0.15)
+    };
+    
+    return {
+      animals: [...state.animals, newAnimal],
+    };
+  }),
+
   reset: () => {
     // Show notification
     notify('success', 'System Reset', 'All parameters restored to defaults.');
@@ -984,8 +1086,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       poles: generatePoles(2000),
       vehicles: [], // Clear traffic (2D view)
       geoVehicles: [], // Clear geo traffic (map view)
+      animals: [], // Clear wildlife
       env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0, interceptsCount: 0 },
+      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0, interceptsCount: 0, wildlifeSaved: 0 },
       powerHistory: [], // Clear history on reset
       autoTraffic: false, // Reset auto-traffic (2D)
       autoGeoTraffic: true, // Keep auto-geo-traffic enabled
