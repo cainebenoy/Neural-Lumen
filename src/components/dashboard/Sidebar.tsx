@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle, Ban, Trees } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle, Ban, Trees, Brain, Activity, TrendingUp, PlayCircle } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 import { Analytics } from './Analytics';
 import { EventLog } from '@/components/ui/EventLog';
@@ -17,7 +17,8 @@ export const Sidebar = () => {
     animals,
     autoTraffic, 
     autoGeoTraffic,
-    gridFailure, 
+    gridFailure,
+    mlPrediction,
     toggleFog, 
     setWind, 
     setTime, 
@@ -31,6 +32,8 @@ export const Sidebar = () => {
     toggleAutoGeoTraffic,
     triggerGridFailure,
     spawnAnimal,
+    initializeMLPredictor,
+    toggleMLPrediction,
     reset
   } = useSimulationStore();
 
@@ -534,6 +537,140 @@ export const Sidebar = () => {
             <RotateCcw size={16} />
             <span className="text-[10px] tracking-[0.2em]">RESET SIM</span>
           </button>
+        </div>
+
+        {/* MODULE 4.5: ML Traffic Prediction */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-purple-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4)]">
+          <div className="text-[10px] tracking-[0.2em] text-purple-400/80 uppercase font-bold mb-3 pb-2 border-b border-purple-900/30 flex items-center gap-2">
+            <Brain size={12} className="text-purple-400" />
+            Neural Traffic Prediction
+          </div>
+          
+          {/* Model Status */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-slate-400">Model Status</span>
+              <div className="flex items-center gap-2">
+                {mlPrediction.isTraining ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="font-mono text-xs text-amber-400">Training...</span>
+                  </>
+                ) : mlPrediction.isReady ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+                    <span className="font-mono text-xs text-emerald-400">Ready</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-slate-500" />
+                    <span className="font-mono text-xs text-slate-400">Idle</span>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* Confidence & Stats */}
+            {mlPrediction.isReady && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-slate-400 flex items-center gap-1.5">
+                    <Activity size={12} className="text-purple-400" />
+                    Confidence
+                  </span>
+                  <span className="font-mono text-xs text-purple-300 font-bold">
+                    {mlPrediction.confidence.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-slate-400 flex items-center gap-1.5">
+                    <TrendingUp size={12} className="text-cyan-400" />
+                    Spawn Rate
+                  </span>
+                  <span className="font-mono text-xs text-cyan-300 font-bold">
+                    {(mlPrediction.spawnRate * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-slate-400">Epochs</span>
+                  <span className="font-mono text-xs text-slate-300">{mlPrediction.epochs}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-slate-400">Loss</span>
+                  <span className="font-mono text-xs text-slate-300">{mlPrediction.loss.toFixed(6)}</span>
+                </div>
+                
+                {/* 24h Prediction Sparkline */}
+                <div className="mt-2 pt-2 border-t border-slate-700/50">
+                  <div className="text-[8px] tracking-wider text-slate-500 uppercase mb-1.5">24h Forecast</div>
+                  <div className="flex items-end gap-px h-8">
+                    {mlPrediction.prediction24h.map((rate, i) => (
+                      <div 
+                        key={i}
+                        className="flex-1 rounded-t-sm transition-all"
+                        style={{
+                          height: `${rate * 100}%`,
+                          backgroundColor: i === Math.floor(env.time / 100) 
+                            ? '#a855f7' // Current hour highlighted
+                            : rate > 0.7 ? '#ef4444' : rate > 0.4 ? '#f59e0b' : '#22c55e',
+                          opacity: i === Math.floor(env.time / 100) ? 1 : 0.5,
+                        }}
+                        title={`${i}:00 - ${(rate * 100).toFixed(0)}%`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[7px] text-slate-500">0:00</span>
+                    <span className="text-[7px] text-slate-500">12:00</span>
+                    <span className="text-[7px] text-slate-500">23:00</span>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {/* Controls */}
+            <div className="flex gap-2 mt-3">
+              {!mlPrediction.isReady && !mlPrediction.isTraining && (
+                <button
+                  onClick={initializeMLPredictor}
+                  className="flex-1 h-9 bg-gradient-to-b from-purple-800/60 to-purple-900/80 border-2 border-purple-600 text-purple-300 font-bold rounded hover:from-purple-700/70 hover:to-purple-800/90 hover:border-purple-500 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_3px_0_#581c87,0_5px_10px_rgba(0,0,0,0.5)]"
+                  title="Train LSTM model on historical traffic patterns"
+                >
+                  <PlayCircle size={14} />
+                  <span className="text-[9px] tracking-[0.15em]">TRAIN MODEL</span>
+                </button>
+              )}
+              
+              {mlPrediction.isReady && (
+                <button
+                  onClick={toggleMLPrediction}
+                  className={cn(
+                    "flex-1 h-9 font-bold rounded transition-all flex items-center justify-center gap-2",
+                    mlPrediction.enabled
+                      ? "bg-gradient-to-b from-emerald-700/60 to-emerald-800/80 border-2 border-emerald-500 text-emerald-300 shadow-[0_3px_0_#064e3b,0_5px_10px_rgba(0,0,0,0.5)]"
+                      : "bg-gradient-to-b from-slate-800/60 to-slate-900/80 border-2 border-slate-600 text-slate-400 shadow-[0_3px_0_#1e293b,0_5px_10px_rgba(0,0,0,0.5)]"
+                  )}
+                >
+                  <Brain size={14} />
+                  <span className="text-[9px] tracking-[0.15em]">
+                    {mlPrediction.enabled ? 'ML ACTIVE' : 'ENABLE ML'}
+                  </span>
+                </button>
+              )}
+            </div>
+            
+            {mlPrediction.isTraining && (
+              <div className="flex items-center gap-2 text-[9px] text-amber-400/70">
+                <div className="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-purple-500 to-amber-500 transition-all"
+                    style={{ width: `${(mlPrediction.epochs / 50) * 100}%` }}
+                  />
+                </div>
+                <span>{mlPrediction.epochs}/50</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* MODULE 5: Analytics */}
