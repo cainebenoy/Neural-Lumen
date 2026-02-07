@@ -283,3 +283,92 @@ export const HIGHWAY_ROUTES = [
     ] as [number, number][],
   },
 ];
+
+// ============ MAJOR CITIES ============
+// City markers for geographic context on the map
+export const MAJOR_CITIES = [
+  { name: 'Delhi', coords: [28.7041, 77.1025] as [number, number], population: '32M' },
+  { name: 'Mumbai', coords: [19.0760, 72.8777] as [number, number], population: '21M' },
+  { name: 'Bangalore', coords: [12.9716, 77.5946] as [number, number], population: '13M' },
+  { name: 'Chennai', coords: [13.0827, 80.2707] as [number, number], population: '11M' },
+  { name: 'Kolkata', coords: [22.5726, 88.3639] as [number, number], population: '15M' },
+  { name: 'Hyderabad', coords: [17.3850, 78.4867] as [number, number], population: '10M' },
+  { name: 'Ahmedabad', coords: [23.0225, 72.5714] as [number, number], population: '8M' },
+  { name: 'Pune', coords: [18.5204, 73.8567] as [number, number], population: '7M' },
+  { name: 'Jaipur', coords: [26.9124, 75.7873] as [number, number], population: '4M' },
+  { name: 'Lucknow', coords: [26.8467, 80.9462] as [number, number], population: '4M' },
+  { name: 'Surat', coords: [21.1702, 72.8311] as [number, number], population: '8M' },
+  { name: 'Nagpur', coords: [21.1458, 79.0882] as [number, number], population: '3M' },
+  { name: 'Bhopal', coords: [23.1765, 75.7885] as [number, number], population: '2M' },
+  { name: 'Patna', coords: [25.5941, 85.1376] as [number, number], population: '2M' },
+  { name: 'Guwahati', coords: [26.1445, 91.7362] as [number, number], population: '1M' },
+  { name: 'Chandigarh', coords: [30.7333, 76.7794] as [number, number], population: '1M' },
+  { name: 'Kochi', coords: [9.9312, 76.2673] as [number, number], population: '2M' },
+  { name: 'Visakhapatnam', coords: [17.6869, 83.2185] as [number, number], population: '2M' },
+  { name: 'Srinagar', coords: [34.0837, 74.7973] as [number, number], population: '2M' },
+  { name: 'Kanyakumari', coords: [8.0883, 77.5385] as [number, number], population: '0.1M' },
+];
+
+// ============ WILDLIFE CORRIDORS ============
+// Eco-sensitive zones where Bio-Shield activates more frequently
+// Based on major wildlife sanctuaries and forest areas along highways
+export const WILDLIFE_CORRIDORS = [
+  { 
+    name: 'Kaziranga Corridor (Assam)',
+    center: [26.5775, 93.1711] as [number, number],
+    radius: 50000, // meters
+    species: ['Elephant', 'Rhino', 'Tiger'],
+  },
+  { 
+    name: 'Gir Forest Corridor (Gujarat)',
+    center: [21.1239, 70.8242] as [number, number],
+    radius: 40000,
+    species: ['Lion', 'Leopard', 'Deer'],
+  },
+  { 
+    name: 'Bandipur-Nagarhole (Karnataka)',
+    center: [11.6717, 76.2711] as [number, number],
+    radius: 45000,
+    species: ['Elephant', 'Tiger', 'Gaur'],
+  },
+  { 
+    name: 'Jim Corbett Corridor (Uttarakhand)',
+    center: [29.5300, 78.7747] as [number, number],
+    radius: 35000,
+    species: ['Tiger', 'Elephant', 'Deer'],
+  },
+  { 
+    name: 'Sundarbans Corridor (West Bengal)',
+    center: [21.9497, 88.8997] as [number, number],
+    radius: 60000,
+    species: ['Tiger', 'Crocodile', 'Deer'],
+  },
+  { 
+    name: 'Western Ghats Corridor (Kerala)',
+    center: [10.1632, 76.6413] as [number, number],
+    radius: 55000,
+    species: ['Elephant', 'Leopard', 'Gaur'],
+  },
+  { 
+    name: 'Pench Tiger Reserve (MP)',
+    center: [21.7500, 79.3000] as [number, number],
+    radius: 30000,
+    species: ['Tiger', 'Leopard', 'Deer'],
+  },
+  { 
+    name: 'Ranthambore Corridor (Rajasthan)',
+    center: [26.0173, 76.5026] as [number, number],
+    radius: 35000,
+    species: ['Tiger', 'Leopard', 'Nilgai'],
+  },
+];
+
+// ============ ROUTE COLORS ============
+// Color coding for different highway types
+export const ROUTE_COLORS = {
+  primary: '#3b82f6',   // Blue - Major national highways (NH44, NH48)
+  secondary: '#8b5cf6', // Purple - Secondary routes
+  coastal: '#06b6d4',   // Cyan - Coastal highways
+  mountain: '#f59e0b',  // Amber - Mountain routes
+  forest: '#10b981',    // Emerald - Forest corridors
+};

@@ -1,5 +1,5 @@
 import { useSimulationStore } from '@/lib/store';
-import { Leaf, TrendingDown, Zap, Battery, Wind } from 'lucide-react';
+import { Leaf, TrendingDown, Zap, Battery, Wind, Heart, ShieldCheck, Ban, Trees } from 'lucide-react';
 
 // Baseline for 2000 poles at 150W each = 300kW
 const BASELINE_POWER_KW = 300;
@@ -19,8 +19,6 @@ export const Analytics = () => {
     ? Math.round(poles.reduce((acc, p) => acc + p.brightness, 0) / poles.length)
     : 0;
 
-  // Energy saved in this session (kWh) - estimated based on time at reduced power
-  const energySavedKwh = (BASELINE_POWER_KW - metrics.powerDraw) * (1/3600); // per second estimate
 
   return (
     <div className="space-y-3">
@@ -122,6 +120,89 @@ export const Analytics = () => {
         </div>
         <div className="text-[9px] text-slate-600 mt-1 text-center">
           {metrics.powerDraw > 0 ? Math.min(100, (metrics.turbineOutput / metrics.powerDraw * 100)).toFixed(0) : 0}% renewable offset
+        </div>
+      </div>
+
+      {/* Safety Metrics Section Header */}
+      <div className="pt-2 border-t border-slate-700/50">
+        <div className="text-[9px] tracking-widest text-slate-500 uppercase font-bold mb-3 text-center">
+          Safety Impact
+        </div>
+      </div>
+
+      {/* Lives Saved Card (Golden Hour Protocol) */}
+      <div className="bg-[#25262b] p-3 rounded-lg border border-blue-900/50 shadow-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Heart className="text-blue-400" size={14} />
+            <span className="text-[9px] tracking-widest text-slate-400 uppercase font-bold">
+              Lives Saved
+            </span>
+          </div>
+          <span className="text-[8px] text-blue-500 font-mono bg-blue-900/30 px-1.5 py-0.5 rounded">GOLDEN HOUR</span>
+        </div>
+        <div className="font-mono text-xl text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]">
+          {Math.floor(metrics.livesSaved)}
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1.5">
+          Emergency corridor activations
+        </div>
+      </div>
+
+      {/* Accidents Prevented Card (Phantom Shield) */}
+      <div className="bg-[#25262b] p-3 rounded-lg border border-amber-900/50 shadow-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="text-amber-400" size={14} />
+            <span className="text-[9px] tracking-widest text-slate-400 uppercase font-bold">
+              Accidents Prevented
+            </span>
+          </div>
+          <span className="text-[8px] text-amber-500 font-mono bg-amber-900/30 px-1.5 py-0.5 rounded">PHANTOM SHIELD</span>
+        </div>
+        <div className="font-mono text-xl text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]">
+          {Math.floor(metrics.accidentsPrevented)}
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1.5">
+          Ghost truck hazards neutralized
+        </div>
+      </div>
+
+      {/* Intercepts Count Card (Neural Intercept) */}
+      <div className="bg-[#25262b] p-3 rounded-lg border border-red-900/50 shadow-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Ban className="text-red-400" size={14} />
+            <span className="text-[9px] tracking-widest text-slate-400 uppercase font-bold">
+              Wrong-Way Stops
+            </span>
+          </div>
+          <span className="text-[8px] text-red-500 font-mono bg-red-900/30 px-1.5 py-0.5 rounded">NEURAL INTERCEPT</span>
+        </div>
+        <div className="font-mono text-xl text-red-400 drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]">
+          {metrics.interceptsCount}
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1.5">
+          Wrong-way drivers intercepted
+        </div>
+      </div>
+
+      {/* Wildlife Saved Card (Bio-Shield) */}
+      <div className="bg-[#25262b] p-3 rounded-lg border border-emerald-900/50 shadow-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Trees className="text-emerald-400" size={14} />
+            <span className="text-[9px] tracking-widest text-slate-400 uppercase font-bold">
+              Wildlife Protected
+            </span>
+          </div>
+          <span className="text-[8px] text-emerald-500 font-mono bg-emerald-900/30 px-1.5 py-0.5 rounded">BIO-SHIELD</span>
+        </div>
+        <div className="font-mono text-xl text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.5)]">
+          {metrics.wildlifeSaved}
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1.5">
+          Safe wildlife crossings
         </div>
       </div>
     </div>

@@ -4,18 +4,26 @@ import { useSimulationStore } from '@/lib/store';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
-import type { Pole, GeoVehicle } from '@/lib/store';
-import { HIGHWAY_ROUTES } from '@/lib/constants';
+import type { Pole, GeoVehicle, Vehicle, Animal, WeatherType } from '@/lib/store';
+import { HIGHWAY_ROUTES, MAJOR_CITIES, WILDLIFE_CORRIDORS, ROUTE_COLORS } from '@/lib/constants';
 
 interface MapComponentWrapperProps {
   mapCenter: [number, number];
   poles: Pole[];
   geoVehicles: GeoVehicle[];
+  vehicles: Vehicle[];
+  animals: Animal[];
+  weather: WeatherType;
+  fog: boolean;
+  gridFailure: boolean;
   getPoleCoordinates: (index: number) => [number, number];
   getPoleColor: (status: string, mode: string) => string;
   getMarkerRadius: (brightness: number) => number;
   formatPower: (brightness: number) => string;
   highwayRoutes: typeof HIGHWAY_ROUTES;
+  majorCities: typeof MAJOR_CITIES;
+  wildlifeCorridors: typeof WILDLIFE_CORRIDORS;
+  routeColors: typeof ROUTE_COLORS;
 }
 
 // Use dynamic import with properly typed components
@@ -33,6 +41,11 @@ const MapComponentWrapper = dynamic<MapComponentWrapperProps>(
 export const GeoMap = () => {
   const poles = useSimulationStore((state) => state.poles);
   const geoVehicles = useSimulationStore((state) => state.geoVehicles);
+  const vehicles = useSimulationStore((state) => state.vehicles);
+  const animals = useSimulationStore((state) => state.animals);
+  const weather = useSimulationStore((state) => state.env.weather);
+  const fog = useSimulationStore((state) => state.env.fog);
+  const gridFailure = useSimulationStore((state) => state.gridFailure);
   const [mounted, setMounted] = useState(false);
 
   // Map center: Central India for full country view
@@ -98,11 +111,25 @@ export const GeoMap = () => {
     // Then check mode
     switch (mode) {
       case 'EMERGENCY_PULSE':
-        return '#ef4444'; // Red for emergency
+      case 'INTERCEPT_STROBE':
+      case 'HAZARD_RED':
+        return '#ef4444'; // Red for emergency/hazard
+      case 'STOP_BARRIER':
+        return '#b91c1c'; // Dark red for stop barrier
+      case 'CORRIDOR_BLUE':
+        return '#3b82f6'; // Blue for ambulance corridor
+      case 'SPOTLIGHT_WHITE':
+        return '#ffffff'; // White spotlight
       case 'FOG_AMBER':
         return '#fbbf24'; // Amber for fog
+      case 'BATTERY':
+        return '#fb923c'; // Orange for battery backup
       case 'ECO_DIM':
         return '#10b981'; // Emerald for eco mode
+      case 'BIO_DARK':
+        return '#7f1d1d'; // Dark red for bio-shield
+      case 'WILDLIFE_VIOLET':
+        return '#8b5cf6'; // Violet for wildlife warning
       case 'STANDARD':
       default:
         return '#06b6d4'; // Cyan for standard
@@ -131,11 +158,19 @@ export const GeoMap = () => {
       mapCenter={mapCenter}
       poles={poles}
       geoVehicles={geoVehicles}
+      vehicles={vehicles}
+      animals={animals}
+      weather={weather}
+      fog={fog}
+      gridFailure={gridFailure}
       getPoleCoordinates={getPoleCoordinates}
       getPoleColor={(status: string, mode: string) => getPoleColor(status, mode)}
       getMarkerRadius={getMarkerRadius}
       formatPower={formatPower}
       highwayRoutes={HIGHWAY_ROUTES}
+      majorCities={MAJOR_CITIES}
+      wildlifeCorridors={WILDLIFE_CORRIDORS}
+      routeColors={ROUTE_COLORS}
     />
   );
 };

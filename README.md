@@ -1,8 +1,10 @@
 # 🛣️ Neural-Lumen: Smart Highway Digital Twin
 
-> **NHAI Smart Highway Lighting System** — Solving black spots with Edge-AI adaptive illumination and renewable energy integration.
+> **Built for NHAI Hackathon - 2025**
 
-A real-time digital twin simulation demonstrating intelligent highway lighting that adapts to fog, traffic patterns, time-of-day, and emergency situations. Built for the NHAI (National Highways Authority of India) challenge to enhance road safety while reducing carbon emissions.
+> **NHAI Smart Highway Lighting System** — Solving black spots with Edge-AI adaptive illumination, renewable energy integration, and advanced safety protocols.
+
+A real-time digital twin simulation demonstrating intelligent highway lighting that adapts to fog, traffic patterns, time-of-day, emergency situations, wildlife crossings, and wrong-way driver incidents. Built for the NHAI (National Highways Authority of India) challenge to enhance road safety while reducing carbon emissions.
 
 ---
 
@@ -12,6 +14,8 @@ Highway "black spots" (high-accident zones) are deadly during:
 - **Fog and adverse weather** conditions
 - **Low-visibility hours** (1 AM - 4 AM)
 - **Emergency situations** requiring rapid mesh communication
+- **Wildlife crossings** causing unexpected hazards
+- **Wrong-way drivers** creating head-on collision risks
 
 Traditional fixed-brightness lighting systems waste energy and fail to adapt to real-time conditions.
 
@@ -36,19 +40,76 @@ Traditional fixed-brightness lighting systems waste energy and fail to adapt to 
 
 ### 🚗 **4. Traffic Physics Engine**
 - **Predictive lighting**: Poles boost to 100% brightness when vehicles approach
-- **Auto-traffic mode**: Toggle "AUTO FLOW" for continuous random vehicle spawning (2% chance per tick)
+- **Auto-traffic mode**: Toggle "AUTO FLOW" for continuous random vehicle spawning
 - **Manual spawn**: Click "SPAWN VEHICLE" for instant traffic
+- **Multi-vehicle types**: Cars, trucks, and ambulances with distinct behaviors
 
-### 🌧️ **5. Weather Visualization**
-- **Rain**: Animated falling blue lines with angular drift
-- **Snow**: Slow-falling white particles with sine-wave wobble
-- **Canvas overlay** with `pointer-events-none` for interactivity
+---
 
-### 📊 **6. Live Telemetry Dashboard**
-- Real-time power consumption graph (ECG-style scrolling)
-- Carbon credit accumulation tracker
-- Active vehicle counter
-- Wind harvest metrics
+## 🆕 Advanced Safety Protocols
+
+### 🚑 **5. Golden Hour Protocol (Ambulance Corridors)**
+- **Emergency ambulance detection** with priority corridor creation
+- **Blue corridor lighting**: 10 poles ahead illuminate in CORRIDOR_BLUE mode
+- **White spotlight**: Pole directly above ambulance activates SPOTLIGHT_WHITE
+- **Real-time tracking**: Lives saved counter increments when ambulance completes route
+- **Visual distinction**: Ambulances rendered with red/blue emergency styling
+
+### 👻 **6. Phantom Shield (Ghost Truck Detection)**
+- **Stalled vehicle detection**: Identifies trucks with speed < 5 km/h
+- **Hazard warning**: 3 poles upstream enter HAZARD_RED mode with enhanced brightness
+- **Prevents rear-end collisions**: Warns approaching traffic of obstacles ahead
+- **Auto-activation**: No manual trigger needed—AI detects anomalies automatically
+
+### ⚠️ **7. Neural Intercept (Wrong-Way Driver Interception)**
+- **Direction violation detection**: Identifies vehicles moving against traffic flow
+- **INTERCEPT_STROBE mode**: Flashing red/white warning on 5 poles ahead
+- **STOP_BARRIER mode**: Solid red barrier effect on remaining poles in path
+- **Accident prevention tracking**: Metrics show intercepts count and accidents prevented
+
+### 🦌 **8. Bio-Shield (Wildlife Protection System)**
+- **IR sensor simulation**: Detects animals crossing the highway
+- **BIO_DARK mode**: Reduces brightness directly above animal to prevent startle
+- **WILDLIFE_VIOLET mode**: 5 poles before and after glow violet to warn drivers
+- **Species-specific corridors**: 8 wildlife zones (Kaziranga, Gir, Bandipur, Jim Corbett, etc.)
+- **Wildlife saved metric**: Tracks successful crossings
+
+---
+
+## 🗺️ Geospatial Visualization
+
+### **Enhanced Geo Map Features**
+
+| Feature | Description |
+|---------|-------------|
+| **Incident Markers** | Animated pulsing red circles at crash sites |
+| **Enhanced Vehicle Icons** | Different markers for ambulances (red/blue), trucks (amber), cars (cyan) |
+| **City Labels** | 20 major Indian cities with population-scaled markers |
+| **Weather Zones** | Semi-transparent overlays showing fog/rain/snow regions |
+| **Route Legend** | Color-coded legend (primary, secondary, coastal, mountain routes) |
+| **Wildlife Corridors** | Green dashed circles marking 8 eco-zones with species info |
+| **Grid Failure Overlay** | Orange tint during simulated power outages |
+| **Status Bar** | Real-time weather, vehicle count, active poles, wildlife alerts |
+
+### **Highway Network**
+- **20+ routes** covering major national highways (NH-44, NH-48, NH-27, etc.)
+- **2000 smart poles** distributed across the network
+- **CartoDB Dark Matter tiles** for cyberpunk aesthetic
+
+---
+
+## 🔋 Infrastructure Resilience
+
+### **Grid Failure Simulation**
+- **Battery Backup Mode**: Poles switch to BATTERY mode during grid failure
+- **Reduced brightness (30%)**: Conserves energy while maintaining safety
+- **Amber fallback**: Visual indication of backup power status
+- **Automatic recovery**: Poles restore normal operation when grid returns
+
+### **Wind Turbine Integration**
+- **Per-pole micro-turbines**: Each pole harvests wind energy
+- **Real-time output graph**: Visualize turbine contribution vs. grid draw
+- **Net metering simulation**: Track energy fed back to grid
 
 ---
 
@@ -61,7 +122,8 @@ Traditional fixed-brightness lighting systems waste energy and fail to adapt to 
 | **Animation** | Framer Motion (vehicle physics) |
 | **Styling** | Tailwind CSS v4 (utility-first) |
 | **Charts** | Recharts (telemetry visualization) |
-| **Maps** | React-Leaflet (geospatial pole tracking) |
+| **Maps** | React-Leaflet + Leaflet (geospatial visualization) |
+| **Icons** | Lucide React (consistent iconography) |
 | **Design System** | Industrial Cyberpunk Aesthetic |
 
 ---
@@ -94,7 +156,7 @@ npm start
 ## 🎮 How to Demo (Pitch Script)
 
 ### **Opening (10 seconds)**
-> "This is Neural-Lumen, a digital twin of NH-48 highway. Watch as 20 smart poles adapt in real-time to conditions."
+> "This is Neural-Lumen, a digital twin of India's national highway network. Watch as 2000 smart poles adapt in real-time to conditions."
 
 ### **Scene 1: Weather Resilience (30 seconds)**
 1. Click **RAIN** button in Weather Systems
@@ -109,20 +171,30 @@ npm start
 ### **Scene 2: Energy Savings (20 seconds)**
 3. Drag **TIME slider** to `0300` (3 AM)
    - **Result**: All poles dim to 30% (ECO MODE)
-   - **Say**: "During low-traffic hours, we save 70% energy. Look at the power graph drop from 3kW to 0.9kW."
+   - **Say**: "During low-traffic hours, we save 70% energy. Watch the power graph drop."
 
 ### **Scene 3: Emergency Response (30 seconds)**
 4. Click **CRASH TEST** button
    - **Result**: Pole #18 goes dark, 5 upstream poles pulse RED
-   - **Say**: "When a crash is detected, the mesh network warns upstream drivers instantly. This is V2X communication in action."
+   - **Say**: "When a crash is detected, the mesh network warns upstream drivers instantly."
 
-### **Scene 4: Traffic Intelligence (20 seconds)**
-5. Toggle **AUTO FLOW** on
-   - **Result**: Vehicles spawn randomly, poles light up as they approach
-   - **Say**: "AI predicts traffic. See poles brighten only when needed? That's predictive lighting using radar detection."
+### **Scene 4: Golden Hour Protocol (30 seconds)**
+5. Click **SPAWN VEHICLE** repeatedly until an ambulance appears
+   - **Result**: Blue corridor forms ahead of ambulance, spotlight tracks it
+   - **Say**: "Ambulances get priority corridors—blue lights clear the path, saving critical minutes."
+
+### **Scene 5: Wildlife Protection (30 seconds)**
+6. Click **SPAWN ANIMAL** button
+   - **Result**: Violet warning zones appear, pole above animal dims
+   - **Say**: "Bio-Shield protects wildlife with anti-glare lighting and driver warnings."
+
+### **Scene 6: Wrong-Way Interception (30 seconds)**
+7. Click **SPAWN WRONG-WAY** button
+   - **Result**: Strobing red/white poles ahead, solid red barrier beyond
+   - **Say**: "Neural Intercept detects wrong-way drivers and creates a visual barrier to prevent head-on collisions."
 
 ### **Closing (10 seconds)**
-> "This saves 40% energy, generates carbon credits, and reduces accidents by 60%. Ready for deployment on NH-48."
+> "Neural-Lumen saves 40% energy, generates carbon credits, and reduces accidents by 60%. Ready for deployment across India's highways."
 
 ---
 
@@ -130,23 +202,28 @@ npm start
 
 ### **Safety Improvements**
 - **60% reduction** in black spot accidents (fog mode + emergency mesh)
-- **Real-time adaptation** to weather and traffic conditions
-- **V2X communication** for driver warnings
+- **Golden Hour Protocol** saves lives with ambulance priority corridors
+- **Bio-Shield** protects wildlife and prevents animal-vehicle collisions
+- **Neural Intercept** stops wrong-way drivers before impact
+- **Phantom Shield** warns of stalled vehicles ahead
 
 ### **Environmental Impact**
 - **40% energy savings** through eco-dimming and predictive lighting
 - **Wind turbine integration** (each pole harvests wind energy)
 - **Carbon credit tracking** (accumulated in real-time)
+- **Wildlife protection** reduces ecosystem disruption
 
 ### **Scalability & Innovation**
 - **Edge-AI processing** (no cloud dependency, 50ms response time)
 - **Mesh network topology** (resilient, self-healing)
 - **Digital twin validation** (test before deploying to real highways)
+- **Multi-protocol support** (12 distinct pole modes for any scenario)
 
 ### **Economic Viability**
 - **ROI in 18 months** (energy savings + carbon credits)
 - **Retrofit-ready** (works with existing highway infrastructure)
 - **Low maintenance** (predictive telemetry flags issues before failure)
+- **Reduced accident costs** (fewer emergency responses, lawsuits, repairs)
 
 ---
 
@@ -161,17 +238,19 @@ neural-lumen/
 │   │   └── globals.css        # Global styles + asphalt pattern
 │   ├── components/
 │   │   ├── dashboard/
-│   │   │   ├── Sidebar.tsx    # Control panel
+│   │   │   ├── Sidebar.tsx    # Control panel with advanced scenarios
+│   │   │   ├── Analytics.tsx  # Extended metrics dashboard
 │   │   │   └── PowerGraph.tsx # Telemetry chart
 │   │   └── simulation/
-│   │       ├── Highway.tsx    # Main simulation view
-│   │       ├── Pole.tsx       # Individual light pole
+│   │       ├── Highway.tsx    # Main simulation view (2D)
+│   │       ├── Pole.tsx       # Individual light pole (12 modes)
 │   │       ├── WeatherOverlay.tsx # Rain/snow canvas
-│   │       └── GeoMap.tsx     # Leaflet geospatial view
+│   │       ├── GeoMap.tsx     # Geospatial wrapper
+│   │       └── MapComponentWrapper.tsx # Leaflet map with overlays
 │   └── lib/
-│       ├── store.ts           # Zustand state management
+│       ├── store.ts           # Zustand state (vehicles, animals, poles)
 │       ├── utils.ts           # Helper functions
-│       └── constants.ts       # Configuration constants
+│       └── constants.ts       # Highway routes, cities, wildlife zones
 ├── docs/                       # Technical documentation
 └── public/                     # Static assets
 ```
@@ -180,25 +259,37 @@ neural-lumen/
 
 ## 🔬 Technical Deep-Dive
 
-### Intelligent Lighting Logic
+### Pole Mode Hierarchy (12 Modes)
 
 ```typescript
-// Pole modes are hierarchical:
-// 1. CRASH (overrides all) → brightness = 0
-// 2. WARNING (emergency mesh) → brightness = 100, mode = EMERGENCY_PULSE
-// 3. FOG_AMBER (weather) → brightness = 100, color = amber
-// 4. ECO_DIM (time-based) → brightness = 30
-// 5. STANDARD (default) → brightness = 80
+type PoleMode = 
+  | 'STANDARD'        // Default white light
+  | 'FOG_AMBER'       // Weather-activated amber
+  | 'ECO_DIM'         // Low-traffic energy saving
+  | 'EMERGENCY_PULSE' // Crash warning upstream
+  | 'BATTERY'         // Grid failure backup
+  | 'CORRIDOR_BLUE'   // Ambulance priority path
+  | 'SPOTLIGHT_WHITE' // Direct ambulance tracking
+  | 'HAZARD_RED'      // Stalled vehicle warning
+  | 'INTERCEPT_STROBE'// Wrong-way driver alert
+  | 'STOP_BARRIER'    // Wrong-way visual barrier
+  | 'BIO_DARK'        // Wildlife anti-glare
+  | 'WILDLIFE_VIOLET';// Wildlife zone warning
+```
 
-// Predictive lighting:
-tick() {
-  poles.map(pole => {
-    const vehicleNearby = vehicles.some(v => 
-      Math.abs(v.x_pos - pole.position) < 15% // Detection zone
-    );
-    if (vehicleNearby) pole.brightness = 100;
-  });
-}
+### Priority Resolution
+
+```typescript
+// Highest priority wins:
+1. INTERCEPT_STROBE / STOP_BARRIER (wrong-way emergency)
+2. EMERGENCY_PULSE (crash upstream warning)
+3. CORRIDOR_BLUE / SPOTLIGHT_WHITE (ambulance)
+4. HAZARD_RED (stalled vehicle)
+5. BIO_DARK / WILDLIFE_VIOLET (wildlife)
+6. FOG_AMBER (weather)
+7. BATTERY (grid failure)
+8. ECO_DIM (time-based)
+9. STANDARD (default)
 ```
 
 ### Weather Automation
@@ -212,30 +303,39 @@ setWeather(weather) {
 }
 ```
 
-### Auto-Traffic
-
-```typescript
-tick() {
-  if (autoTraffic && Math.random() < 0.02) {
-    spawnVehicle(); // 2% chance = natural traffic flow
-  }
-}
-```
-
 ---
 
 ## 🏆 Hackathon Readiness Checklist
 
-- [x] **Weather resilience** (Rain/Snow/Fog modes)
-- [x] **Emergency mesh network** (Crash propagation)
-- [x] **Energy efficiency** (Eco-dimming + carbon credits)
-- [x] **Traffic intelligence** (Predictive lighting)
-- [x] **Real-time telemetry** (Power graph + metrics)
-- [x] **Auto-pilot mode** (Auto-traffic for demos)
+- [x] **Weather resilience** (Rain/Snow/Fog modes with auto-activation)
+- [x] **Emergency mesh network** (Crash propagation with upstream warnings)
+- [x] **Energy efficiency** (Eco-dimming + carbon credit tracking)
+- [x] **Traffic intelligence** (Predictive lighting + auto-traffic)
+- [x] **Golden Hour Protocol** (Ambulance priority corridors)
+- [x] **Phantom Shield** (Ghost truck / stalled vehicle detection)
+- [x] **Neural Intercept** (Wrong-way driver interception)
+- [x] **Bio-Shield** (Wildlife protection with anti-glare)
+- [x] **Grid failure simulation** (Battery backup mode)
+- [x] **Enhanced geo map** (Cities, wildlife zones, incident markers)
+- [x] **Real-time telemetry** (Power graph + comprehensive metrics)
 - [x] **Professional UI** (Industrial cyberpunk aesthetic)
-- [x] **Geospatial mapping** (NH-48 Delhi-Gurgaon corridor)
 - [x] **Build stability** (Zero TypeScript errors)
 - [x] **Documentation** (This README + inline code comments)
+
+---
+
+## 📊 Metrics Dashboard
+
+| Metric | Description |
+|--------|-------------|
+| **Power Draw** | Real-time total power consumption (kW) |
+| **Turbine Output** | Wind energy harvested per pole (kW) |
+| **Net Grid Draw** | Power draw minus turbine offset |
+| **Carbon Credits** | Accumulated from eco-dimming savings |
+| **Lives Saved** | Ambulance protocol completions |
+| **Accidents Prevented** | Wrong-way intercepts + crash warnings |
+| **Intercepts Count** | Neural Intercept activations |
+| **Wildlife Saved** | Bio-Shield successful crossings |
 
 ---
 
@@ -247,6 +347,7 @@ The UI uses an **Industrial Cyberpunk** aesthetic:
 - **Skeuomorphic panels** (beveled borders, inset shadows for tactile feel)
 - **Monospace typography** (technical precision)
 - **Data-dense layout** (operator-first, not consumer-facing)
+- **Responsive design** (works on 1080p to 4K displays)
 
 ---
 
@@ -267,10 +368,12 @@ For questions or demo requests, contact the development team.
 ## 🚀 Future Enhancements
 
 - **ML-based traffic prediction** (LSTM models for spawn rate optimization)
-- **IoT sensor integration** (real fog/rain sensors, not just simulated)
+- **IoT sensor integration** (Real fog/rain sensors, not just simulated)
 - **Mobile dashboard** (React Native companion app for field engineers)
-- **Multi-highway support** (extend digital twin to NH-1, NH-44, etc.)
-- **Heat maps** (visualize power consumption density on map)
+- **Multi-highway support** (Extend digital twin to regional roads)
+- **Heat maps** (Visualize power consumption density on map)
+- **V2X integration** (Real vehicle-to-infrastructure communication)
+- **Historical playback** (Review past incidents and system responses)
 
 ---
 

@@ -14,6 +14,7 @@ export const Sidebar = () => {
     env, 
     vehicles, 
     geoVehicles,
+    animals,
     autoTraffic, 
     autoGeoTraffic,
     gridFailure, 
@@ -212,7 +213,7 @@ export const Sidebar = () => {
               type="range" 
               min="0" 
               max="2400" 
-              step="100"
+              step="50"
               aria-label="Time of day control"
               title="Adjust time of day"
               value={env.time}
@@ -404,6 +405,14 @@ export const Sidebar = () => {
               Target Lock + Stop Barrier — Infrastructure as Immune System
             </p>
 
+            {/* Active Wildlife Counter */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Wildlife Active</span>
+              <span className="text-emerald-400 font-mono font-bold">
+                {animals.length}
+              </span>
+            </div>
+
             {/* Wildlife Crossing Button - Bio-Shield */}
             <button 
               onClick={() => spawnAnimal()}
@@ -495,12 +504,12 @@ export const Sidebar = () => {
           </div>
           
           <button 
-            onClick={() => triggerCrash(1000)}
+            onClick={() => triggerCrash(Math.floor(Math.random() * 2000))}
             className="w-full h-16 bg-gradient-to-b from-red-900/40 to-red-950/60 border-2 border-red-800 text-red-400 font-bold rounded hover:from-red-800/50 hover:to-red-900/70 hover:border-red-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5 shadow-[0_4px_0_#7f1d1d,0_6px_12px_rgba(0,0,0,0.6)]"
           >
             <Truck size={20} className="drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
             <span className="text-xs tracking-[0.2em]">CRASH TEST</span>
-            <span className="text-[9px] text-red-500/70 font-mono">POLE #1000</span>
+            <span className="text-[9px] text-red-500/70 font-mono">RANDOM POLE</span>
           </button>
 
           {/* Grid Failure */}

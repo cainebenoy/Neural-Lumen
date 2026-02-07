@@ -505,7 +505,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           x_pos: vehicle.x_pos + (effectiveSpeed / 360), // 200ms tick movement
         };
       })
-      .filter(vehicle => vehicle.x_pos <= 105); // Remove vehicles that drove off-screen
+      .filter(vehicle => vehicle.x_pos <= 105 && vehicle.x_pos >= -5); // Remove vehicles that drove off-screen (either direction)
 
     // GEO VEHICLE PHYSICS ENGINE (Map View)
     // Routes vary in length, so speed is normalized per route
@@ -521,7 +521,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           progress: vehicle.progress + progressIncrement,
         };
       })
-      .filter(vehicle => vehicle.progress <= 1.05); // Remove vehicles that completed route
+      .filter(vehicle => vehicle.progress <= 1.05 && vehicle.progress >= -0.05); // Remove vehicles that completed route or went invalid
 
     // GOLDEN HOUR PROTOCOL: Check for active ambulances
     const ambulance = updatedVehicles.find(v => v.type === 'ambulance');
@@ -621,24 +621,28 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       }))
       .filter(animal => animal.x_pos <= 100); // Remove animals that completed crossing
 
-    // Detect active wildlife on the road
-    let bioDarkPoleId: number | null = null;
+    // Detect active wildlife on the road (supports multiple animals)
+    const bioDarkPoleIds: Set<number> = new Set();
     const wildlifeVioletPoleIds: Set<number> = new Set();
     
-    if (updatedAnimals.length > 0) {
-      const animal = updatedAnimals[0]; // Focus on first animal
+    // Process ALL animals for protection, not just the first
+    for (const animal of updatedAnimals) {
       const animalPosition = animal.x_pos; // 0-100%
       
-      // Find the pole closest to the animal (BIO_DARK - Anti-glare protection)
+      // Find the pole closest to this animal (BIO_DARK - Anti-glare protection)
       let minDistance = Infinity;
+      let closestPoleId: number | null = null;
       state.poles.forEach((pole, index) => {
         const polePosition = (index / (state.poles.length - 1)) * 100;
         const distance = Math.abs(polePosition - animalPosition);
         if (distance < minDistance) {
           minDistance = distance;
-          bioDarkPoleId = pole.id;
+          closestPoleId = pole.id;
         }
       });
+      if (closestPoleId !== null) {
+        bioDarkPoleIds.add(closestPoleId);
+      }
       
       // Find 5 poles BEFORE and AFTER the animal (WILDLIFE_VIOLET warning zones)
       const warningStartPercent = animalPosition - 5; // 5% before (~500m)
@@ -708,12 +712,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       }
       
       // BIO-SHIELD: Anti-glare mode directly above wildlife
-      if (bioDarkPoleId === pole.id) {
+      if (bioDarkPoleIds.has(pole.id)) {
         return {
           ...pole,
           mode: 'BIO_DARK' as PoleMode,
           brightness: 10, // Almost off - prevent blinding animals
-          status: 'OK' as PoleStatus,
+          status: 'ACTIVE' as PoleStatus,
         };
       }
       
@@ -733,7 +737,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           (pole.mode === 'SPOTLIGHT_WHITE' && spotlightPoleId !== pole.id) ||
           (pole.mode === 'INTERCEPT_STROBE' && interceptStrobePoleId !== pole.id) ||
           (pole.mode === 'STOP_BARRIER' && !stopBarrierPoleIds.has(pole.id)) ||
-          (pole.mode === 'BIO_DARK' && bioDarkPoleId !== pole.id) ||
+          (pole.mode === 'BIO_DARK' && !bioDarkPoleIds.has(pole.id)) ||
           (pole.mode === 'WILDLIFE_VIOLET' && !wildlifeVioletPoleIds.has(pole.id))) {
         const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
         const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
@@ -866,7 +870,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     const vehicleType: VehicleType = forceType || (Math.random() < 0.3 ? 'truck' : 'car');
     
     // NEURAL INTERCEPT: Wrong-way driver (Ghost Rider)
+    // Limit to 2 simultaneous wrong-way drivers for realism
     if (isWrongWay) {
+      const activeWrongWay = state.vehicles.filter(v => v.speed < 0).length;
+      if (activeWrongWay >= 2) {
+        notify('info', 'INTERCEPT QUEUE FULL', 'Maximum wrong-way drivers active. Wait for resolution.');
+        return {};
+      }
       notify('crash', '🚫 NEURAL INTERCEPT', 'Wrong-way driver detected! Activating Target Lock and Stop Barrier.');
       return {
         vehicles: [...state.vehicles, {
@@ -884,7 +894,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     }
     
     // PHANTOM SHIELD: Stalled vehicle (Ghost Truck)
+    // Limit to 3 simultaneous stalled vehicles
     if (isStalled) {
+      const activeStalledVehicles = state.vehicles.filter(v => v.speed === 0).length;
+      if (activeStalledVehicles >= 3) {
+        notify('info', 'PHANTOM SHIELD BUSY', 'Maximum stalled vehicles being monitored.');
+        return {};
+      }
       notify('crash', '⚠️ PHANTOM SHIELD', 'Unlit stationary truck detected. Activating hazard corridor behind.');
       return {
         vehicles: [...state.vehicles, {
@@ -898,7 +914,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     }
     
     // Ambulance: Golden Hour Protocol - priority emergency vehicle
+    // Limit to 3 simultaneous ambulances for realism
     if (vehicleType === 'ambulance') {
+      const activeAmbulances = state.vehicles.filter(v => v.type === 'ambulance').length;
+      if (activeAmbulances >= 3) {
+        notify('info', 'DISPATCH FULL', 'Maximum emergency vehicles in transit. Medical response queued.');
+        return {};
+      }
       notify('crash', '🚑 GOLDEN HOUR PROTOCOL', 'Emergency corridor activated. Clearing fast lane ahead.');
       return {
         vehicles: [...state.vehicles, {
@@ -1039,7 +1061,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
       const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
       if (state.env.fog) {
-        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: 100 };
+        // Weather-specific brightness: snow=100, rain=90, fog-only=80
+        const fogBrightness = state.env.weather === 'SNOW' ? 100 : state.env.weather === 'RAIN' ? 90 : 80;
+        return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: fogBrightness };
       }
       if (isDaytime) {
         return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
@@ -1059,6 +1083,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * Triggers BIO_DARK (dim) for animal zone and WILDLIFE_VIOLET for warning zones
    */
   spawnAnimal: (type?: AnimalType) => set((state) => {
+    // Limit to 3 simultaneous wildlife crossings for realism
+    if (state.animals.length >= 3) {
+      notify('info', 'BIO-SHIELD BUSY', 'Maximum wildlife detections active. Monitoring continues.');
+      return {};
+    }
+    
     const animalType: AnimalType = type || (Math.random() < 0.5 ? 'DEER' : Math.random() < 0.7 ? 'ELEPHANT' : 'LEOPARD');
     
     notify('info', '🦌 BIO-SHIELD ACTIVATED', `${animalType} detected crossing highway. Anti-glare protection enabled.`);

@@ -22,6 +22,7 @@ export const Pole = ({ data }: { data: PoleType }) => {
     if (data.mode === 'BIO_DARK') return 'bg-red-900/20 shadow-none'; // Almost invisible - protect animal vision
     if (data.mode === 'WILDLIFE_VIOLET') return 'bg-violet-500 shadow-[0_0_28px_#8b5cf6]'; // Purple wildlife warning
     if (data.mode === 'CORRIDOR_BLUE') return 'bg-blue-500 shadow-[0_0_24px_#3b82f6]';
+    if (data.mode === 'EMERGENCY_PULSE') return 'bg-red-500 shadow-[0_0_24px_#ef4444]'; // Emergency warning pulse
     if (data.mode === 'BATTERY') return 'bg-orange-400/70 shadow-[0_0_12px_#fb923c]';
     if (data.mode === 'FOG_AMBER') return 'bg-amber-500 shadow-[0_0_20px_#f59e0b]';
     if (data.mode === 'ECO_DIM') return 'bg-cyan-300/60 shadow-[0_0_12px_#67e8f9]';
@@ -65,6 +66,13 @@ export const Pole = ({ data }: { data: PoleType }) => {
       return {
         background: `radial-gradient(ellipse at center, rgba(224,242,254,${0.5 * b}) 0%, rgba(224,242,254,${0.25 * b}) 50%, transparent 70%)`,
         opacity: 0.8,
+      };
+    }
+    // EMERGENCY_PULSE: General emergency warning
+    if (data.mode === 'EMERGENCY_PULSE') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(239,68,68,${Math.min(1, 1.3 * b)}) 0%, rgba(239,68,68,${0.7 * b}) 45%, rgba(239,68,68,${0.2 * b}) 70%, transparent 85%)`,
+        opacity: 1,
       };
     }
     // CORRIDOR_BLUE: Golden Hour Protocol - Emergency ambulance corridor
@@ -196,6 +204,7 @@ export const Pole = ({ data }: { data: PoleType }) => {
             data.mode === 'STOP_BARRIER' ? 'bg-red-500' :
             data.mode === 'BIO_DARK' ? 'bg-red-900/10' : // Almost invisible for animal protection
             data.mode === 'WILDLIFE_VIOLET' ? 'bg-violet-400' : // Purple warning glow
+            data.mode === 'EMERGENCY_PULSE' ? 'bg-red-400' : // Emergency warning
             data.mode === 'HAZARD_RED' ? 'bg-red-400' :
             data.mode === 'SPOTLIGHT_WHITE' ? 'bg-white' :
             data.mode === 'CORRIDOR_BLUE' ? 'bg-blue-400' :
