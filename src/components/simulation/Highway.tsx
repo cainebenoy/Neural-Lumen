@@ -1,3 +1,5 @@
+'use client';
+
 import { useSimulationStore } from '@/lib/store';
 import { Pole } from './Pole';
 import { WeatherOverlay } from './WeatherOverlay';

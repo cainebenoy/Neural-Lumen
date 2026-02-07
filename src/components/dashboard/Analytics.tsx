@@ -1,3 +1,5 @@
+'use client';
+
 import { useSimulationStore } from '@/lib/store';
 import { Leaf, TrendingDown, Zap, Battery, Wind, Heart, ShieldCheck, Ban, Trees } from 'lucide-react';
 

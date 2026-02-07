@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'framer-motion';
 import { Wind } from 'lucide-react';
 import { Pole as PoleType, useSimulationStore } from '@/lib/store';

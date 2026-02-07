@@ -1,3 +1,5 @@
+'use client';
+
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle, Ban, Trees, Brain, Activity, TrendingUp, PlayCircle } from 'lucide-react';
