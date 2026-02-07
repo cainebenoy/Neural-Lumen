@@ -9,9 +9,21 @@
  * - Day-of-week patterns (weekday vs weekend)
  * - Weather impact factor
  * - Real-time inference for adaptive spawn rates
+ * - Dynamic TensorFlow.js import (browser-only) for Vercel/SSR compatibility
  */
 
-import * as tf from '@tensorflow/tfjs';
+// Dynamically import TensorFlow.js only in the browser to avoid SSR crashes
+let tf: typeof import('@tensorflow/tfjs') | null = null;
+
+async function getTf() {
+  if (!tf) {
+    if (typeof window === 'undefined') {
+      throw new Error('TensorFlow.js can only run in the browser');
+    }
+    tf = await import('@tensorflow/tfjs');
+  }
+  return tf;
+}
 
 // Training data represents typical traffic patterns
 // [hour (0-23), dayOfWeek (0-6), isRainOrSnow (0/1)] -> spawnRate (0-1)
@@ -74,7 +86,8 @@ const HISTORICAL_PATTERNS: [number[], number][] = [
 ];
 
 // Model state
-let model: tf.LayersModel | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let model: any = null;
 let isTraining = false;
 let trainedEpochs = 0;
 let lastLoss = 1.0;
@@ -93,7 +106,8 @@ function normalizeInput(hour: number, dayOfWeek: number, isWeather: number): num
  * Create the Dense Neural Network model architecture
  * Simplified from LSTM to Dense layers for regression task stability
  */
-function createModel(): tf.LayersModel {
+async function createModel() {
+  const tf = await getTf();
   const model = tf.sequential();
   
   // Input layer with 64 neurons
@@ -132,7 +146,7 @@ function createModel(): tf.LayersModel {
     metrics: ['mse']
   });
   
-  return model;
+  return model as any;
 }
 
 /**
@@ -147,9 +161,11 @@ export async function trainModel(epochs: number = 100, onProgress?: (epoch: numb
   isTraining = true;
   
   try {
+    const tf = await getTf();
+    
     // Create model if not exists
     if (!model) {
-      model = createModel();
+      model = await createModel();
     }
     
     // Prepare training data
@@ -189,7 +205,7 @@ export async function trainModel(epochs: number = 100, onProgress?: (epoch: numb
       shuffle: true,
       validationSplit: 0.2,
       callbacks: {
-        onEpochEnd: (epoch, logs) => {
+        onEpochEnd: (epoch: number, logs: any) => {
           trainedEpochs = epoch + 1;
           lastLoss = logs?.loss ?? lastLoss;
           if (onProgress) {
@@ -217,15 +233,15 @@ export async function trainModel(epochs: number = 100, onProgress?: (epoch: numb
  * Predict optimal spawn rate based on current conditions
  */
 export function predictSpawnRate(hour: number, dayOfWeek: number, isRainOrSnow: boolean): number {
-  if (!model || !modelReady) {
-    // Fallback to simple heuristic if model not ready
+  if (!model || !modelReady || typeof window === 'undefined' || !tf) {
+    // Fallback to simple heuristic if model not ready or running on server
     return getHeuristicSpawnRate(hour, dayOfWeek, isRainOrSnow);
   }
   
   try {
     const input = normalizeInput(hour, dayOfWeek, isRainOrSnow ? 1 : 0);
     const inputTensor = tf.tensor2d([input]);
-    const prediction = model.predict(inputTensor) as tf.Tensor;
+    const prediction = model.predict(inputTensor);
     const result = prediction.dataSync()[0];
     
     // Cleanup
