@@ -128,10 +128,18 @@ export const Pole = ({ data }: { data: PoleType }) => {
       {/* 4. PHYSICAL STICK - The Pole Structure */}
       <div className="w-2 h-28 bg-gradient-to-b from-slate-600 via-slate-700 to-slate-900 border-x border-slate-700/50 shadow-md z-10 rounded-sm" />
 
-      {/* 5. BASE PLATE */}
+      {/* 5. STATUS LED - Connectivity Health Indicator (Green=Online, Red=Offline per PRD FR-03) */}
+      <div className={cn(
+        "w-2 h-2 rounded-full z-20 my-0.5 transition-all duration-300",
+        data.status === 'CRASH' ? 'bg-red-500 shadow-[0_0_8px_#ef4444] animate-pulse' :
+        data.status === 'WARNING' ? 'bg-orange-500 shadow-[0_0_6px_#f97316]' :
+        'bg-emerald-500 shadow-[0_0_6px_#10b981]'
+      )} title={data.status === 'CRASH' ? 'OFFLINE' : data.status === 'WARNING' ? 'WARNING' : 'ONLINE'} />
+
+      {/* 6. BASE PLATE */}
       <div className="w-4 h-1.5 bg-gradient-to-b from-slate-500 to-slate-700 rounded-full shadow-md z-10" />
       
-      {/* POLE ID - Shows on hover or in alert states */}
+      {/* 7. POLE ID - Shows on hover or in alert states */}
       <div className={cn(
         "absolute -top-6 bg-black/80 border rounded px-2 py-0.5 text-[8px] font-mono font-bold transition-opacity",
         data.status === 'CRASH' ? 'opacity-100 border-red-500 text-red-400' :
