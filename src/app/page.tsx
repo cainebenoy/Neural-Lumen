@@ -5,8 +5,9 @@ import { Highway } from '@/components/simulation/Highway';
 // import { MapViewport } from '@/components/simulation/MapViewport';
 import { GeoMap } from '@/components/simulation/GeoMap';
 import { Sidebar } from '@/components/dashboard/Sidebar';
+import { NotificationContainer } from '@/components/ui/Notifications';
 import { useSimulationStore } from '@/lib/store';
-import { Activity, Map, Grid3x3, Globe, Wifi, WifiOff, Gauge, Eye } from 'lucide-react';
+import { Activity, Map, Grid3x3, Globe, Wifi, WifiOff, Gauge, Eye, Pause, Play } from 'lucide-react';
 
 /**
  * Neural-Lumen Main Page
@@ -20,11 +21,14 @@ export default function Home() {
   const env = useSimulationStore((state) => state.env);
   const tick = useSimulationStore((state) => state.tick);
   const [viewMode, setViewMode] = useState<'simulation' | 'geo'>('simulation');
+  const [isPaused, setIsPaused] = useState(false);
 
   // Memoize tick function to prevent interval reset
   const handleTick = useCallback(() => {
-    tick();
-  }, [tick]);
+    if (!isPaused) {
+      tick();
+    }
+  }, [tick, isPaused]);
 
   // Simulation Loop: Call tick() every 200ms for smooth vehicle animation
   // (5x per second — each tick moves vehicles 1/5th of a 1-second step)
@@ -33,8 +37,23 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [handleTick]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        setIsPaused(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   return (
     <main className="flex h-screen w-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-slate-200 overflow-hidden">
+      
+      {/* Notification Toasts */}
+      <NotificationContainer />
       
       {/* LEFT SIDE: Main Viewport */}
       <div className="flex-1 flex flex-col p-6">
@@ -54,8 +73,23 @@ export default function Home() {
             </p>
           </div>
 
-          {/* View Toggle */}
-          <div className="flex gap-2 bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-1">
+          <div className="flex items-center gap-3">
+            {/* Pause/Play Toggle */}
+            <button
+              onClick={() => setIsPaused(!isPaused)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                isPaused
+                  ? 'bg-amber-600/20 border-amber-500 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : 'bg-emerald-600/20 border-emerald-600 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              }`}
+              title={isPaused ? 'Resume simulation (Space)' : 'Pause simulation (Space)'}
+            >
+              {isPaused ? <Play size={16} /> : <Pause size={16} />}
+              <span className="text-xs font-mono font-bold">{isPaused ? 'PAUSED' : 'LIVE'}</span>
+            </button>
+
+            {/* View Toggle */}
+            <div className="flex gap-2 bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-1">
             <button
               onClick={() => setViewMode('geo')}
               className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
@@ -81,6 +115,7 @@ export default function Home() {
               <span className="text-xs font-mono font-bold">SIM</span>
             </button>
           </div>
+        </div>
         </div>
 
         {/* CENTER: Dynamic Viewport */}
@@ -162,7 +197,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Visibility */}
+          {/* Visibility & Mode */}
           <div className="bg-slate-900/80 border-2 border-slate-700/50 rounded-lg p-4 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5),0_4px_12px_rgba(0,0,0,0.6)]">
             <div className="text-[9px] tracking-[0.3em] text-slate-500 uppercase font-bold mb-2 font-mono">
               Visibility
@@ -177,10 +212,20 @@ export default function Home() {
               </span>
               <span className="text-sm text-slate-500 ml-1">%</span>
             </div>
+            {/* Current Mode Indicator */}
             <div className="flex items-center gap-1.5 mt-2">
-              <Eye size={10} className={env.visibility >= 80 ? 'text-emerald-500' : env.visibility >= 50 ? 'text-amber-500' : 'text-red-500'} />
-              <span className="text-xs text-slate-600 font-mono">
-                {env.visibility >= 80 ? 'Clear' : env.visibility >= 50 ? 'Reduced' : env.visibility >= 30 ? 'Poor' : 'Hazardous'}
+              <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                gridFailure ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                env.fog ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                env.time >= 600 && env.time <= 1800 ? 'bg-slate-600/20 text-slate-400 border border-slate-500/30' :
+                env.time >= 100 && env.time <= 400 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
+                'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}>
+                {gridFailure ? 'BATTERY' :
+                 env.fog ? 'FOG AMBER' :
+                 env.time >= 600 && env.time <= 1800 ? 'DAYTIME' :
+                 env.time >= 100 && env.time <= 400 ? 'ECO DIM' :
+                 'STANDARD'}
               </span>
             </div>
           </div>

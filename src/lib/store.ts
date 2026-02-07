@@ -5,6 +5,35 @@ import { create } from 'zustand';
  * Smart Highway Lighting Simulation with Industrial Cyberpunk Aesthetic
  */
 
+// Notification helper - lazy import to prevent circular dependencies
+type NotifyFn = (type: 'crash' | 'weather' | 'grid' | 'info' | 'success', title: string, message: string) => void;
+type EventFn = (type: 'crash' | 'weather' | 'grid' | 'info' | 'success', message: string) => void;
+
+let showNotification: NotifyFn | null = null;
+let addSystemEvent: EventFn | null = null;
+
+const notify = (type: 'crash' | 'weather' | 'grid' | 'info' | 'success', title: string, message: string) => {
+  // Show toast notification
+  if (!showNotification) {
+    import('@/components/ui/Notifications').then(mod => {
+      showNotification = mod.showNotification as NotifyFn;
+      showNotification(type, title, message);
+    });
+  } else {
+    showNotification(type, title, message);
+  }
+  
+  // Add to event log
+  if (!addSystemEvent) {
+    import('@/components/ui/EventLog').then(mod => {
+      addSystemEvent = mod.addSystemEvent as EventFn;
+      addSystemEvent(type, `${title}: ${message}`);
+    });
+  } else {
+    addSystemEvent(type, `${title}: ${message}`);
+  }
+};
+
 // TypeScript Interfaces
 export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY';
 export type PoleStatus = 'ACTIVE' | 'CRASH' | 'WARNING';
@@ -156,6 +185,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   toggleFog: () => set((state) => {
     const newFogState = !state.env.fog;
     
+    // Show notification
+    if (newFogState) {
+      notify('weather', '🌫️ FOG MODE ACTIVE', 'Spectral shift to 2200K amber for optimal penetration.');
+    } else {
+      notify('info', 'Fog Cleared', 'Returning to standard lighting mode.');
+    }
+    
     // If turning fog off while weather requires it, reset weather to CLEAR
     const newWeather = (!newFogState && (state.env.weather === 'RAIN' || state.env.weather === 'SNOW'))
       ? 'CLEAR' as WeatherType
@@ -201,6 +237,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * Staggered ripple: Pole N-1 reacts in 150ms, N-2 in 300ms... N-5 in 750ms
    */
   triggerCrash: (id: number) => {
+    // Show notification
+    notify('crash', '⚠️ CRASH DETECTED', `Pole #${id} anomaly. Mesh alert propagating upstream.`);
+    
     // 1. Immediately set the crashed pole to bright red
     set((state) => {
       const newPoles = [...state.poles];
@@ -299,6 +338,15 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * Vehicle speeds are capped by weather conditions in tick()
    */
   setWeather: (weather: WeatherType) => set((state) => {
+    // Show notification
+    if (weather === 'RAIN') {
+      notify('weather', '🌧️ Rain Detected', 'Activating amber mode for improved visibility.');
+    } else if (weather === 'SNOW') {
+      notify('weather', '❄️ Snow Conditions', 'Maximum brightness engaged. Drive with caution.');
+    } else if (weather === 'CLEAR' && state.env.weather !== 'CLEAR') {
+      notify('success', 'Weather Cleared', 'Returning to optimal lighting conditions.');
+    }
+    
     const needsFog = weather === 'RAIN' || weather === 'SNOW';
     const visibility = calculateVisibility(needsFog || state.env.fog, weather, state.env.windSpeed);
     
@@ -345,19 +393,23 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   tick: () => set((state) => {
     const tickCount = state._tickCount + 1;
 
-    // Calculate power consumption
-    const WATTS_PER_PERCENT = 1.5; // 1.5W per 1% brightness
+    // POWER CONSUMPTION MODEL
+    // Max wattage per pole: 150W (from constants)
+    // Brightness 0-100 maps to 0-150W
+    const MAX_WATTS_PER_POLE = 150;
     const totalWatts = state.poles.reduce((acc, p) => {
-      return acc + (p.brightness * WATTS_PER_PERCENT);
+      return acc + (p.brightness / 100) * MAX_WATTS_PER_POLE;
     }, 0);
     
-    // Baseline: Legacy system always 100% brightness on all poles
-    const baselineWatts = state.poles.length * 100 * WATTS_PER_PERCENT;
+    // Baseline: Legacy system always 100% brightness on all poles = 300kW for 2000 poles
+    const baselineWatts = state.poles.length * MAX_WATTS_PER_POLE;
     const savings = Math.max(0, baselineWatts - totalWatts);
     
-    // Wind harvest calculation with realistic variance
-    const harvestPerPole = state.env.windSpeed * 0.5 * (0.8 + Math.random() * 0.4);
+    // Wind harvest calculation: P = 0.5 * windSpeed^3 clamped to max 50W per pole
+    // With realistic variance
+    const harvestPerPole = Math.min(50, state.env.windSpeed * 0.5 * (0.8 + Math.random() * 0.4));
 
+    // Convert to kW
     const newPowerDraw = Number((totalWatts / 1000).toFixed(2));
 
     // Update power history every 5 ticks (= once per second) to avoid graph flood
@@ -520,7 +572,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     return {
       metrics: {
         powerDraw: newPowerDraw,
-        carbonCredits: state.metrics.carbonCredits + (savings * 0.00002), // Accumulate credits (scaled for 200ms tick)
+        // Carbon credit formula: (kWh saved) * Grid emission factor * credit rate
+        // savings in Watts, tick is 200ms = 1/18000 hour
+        // Grid emission factor India = 0.82 kgCO2/kWh
+        // Simplified accumulation rate for visual feedback
+        carbonCredits: state.metrics.carbonCredits + ((savings / 1000) * (1/18000) * 0.82 * 0.5),
       },
       poles: updatedPoles.map(p => ({
         ...p,
@@ -559,6 +615,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   spawnTrafficJam: () => set((state) => {
     const count = 6 + Math.floor(Math.random() * 3); // 6-8 vehicles
     const jamVehicles: Vehicle[] = [];
+    
+    // Show notification
+    notify('info', '🚗 Traffic Jam', `${count} vehicles spawned in convoy formation.`);
+    
     for (let i = 0; i < count; i++) {
       const isTruck = Math.random() < 0.4; // 40% trucks in a jam
       jamVehicles.push({
@@ -603,9 +663,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    */
   spawnGeoTrafficBurst: () => set((state) => {
     const burst: GeoVehicle[] = [];
+    let totalVehicles = 0;
+    
     // Spawn 3-5 vehicles per route (15-25 total vehicles)
     for (let routeIdx = 0; routeIdx < 5; routeIdx++) {
       const count = 3 + Math.floor(Math.random() * 3);
+      totalVehicles += count;
       for (let i = 0; i < count; i++) {
         const isTruck = Math.random() < 0.3;
         burst.push({
@@ -618,6 +681,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         });
       }
     }
+    
+    // Show notification
+    notify('info', '🚗 Traffic Burst', `${totalVehicles} vehicles deployed across 5 routes.`);
+    
     return { geoVehicles: [...state.geoVehicles, ...burst] };
   }),
 
@@ -635,6 +702,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    */
   triggerGridFailure: () => set((state) => {
     const newGridState = !state.gridFailure;
+    
+    // Show notification
+    if (newGridState) {
+      notify('grid', '⚡ GRID FAILURE', 'Switching to battery backup. 25% capacity.');
+    } else {
+      notify('success', 'Grid Restored', 'Main power online. Full capacity restored.');
+    }
     
     const newPoles = state.poles.map(p => {
       if (p.status === 'CRASH' || p.status === 'WARNING') return p;
@@ -661,16 +735,24 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     return { gridFailure: newGridState, poles: newPoles };
   }),
 
-  reset: () => set({
-    poles: generatePoles(2000),
-    vehicles: [], // Clear traffic (2D view)
-    geoVehicles: [], // Clear geo traffic (map view)
-    env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-    metrics: { powerDraw: 24.0, carbonCredits: 0 },
-    powerHistory: [], // Clear history on reset
-    autoTraffic: false, // Reset auto-traffic (2D)
-    autoGeoTraffic: true, // Keep auto-geo-traffic enabled
-    gridFailure: false, // Reset grid
-    _tickCount: 0,
-  })
+  reset: () => {
+    // Show notification
+    notify('success', 'System Reset', 'All parameters restored to defaults.');
+    
+    // Clear event log
+    import('@/components/ui/EventLog').then(mod => mod.clearEventLog());
+    
+    return set({
+      poles: generatePoles(2000),
+      vehicles: [], // Clear traffic (2D view)
+      geoVehicles: [], // Clear geo traffic (map view)
+      env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
+      metrics: { powerDraw: 24.0, carbonCredits: 0 },
+      powerHistory: [], // Clear history on reset
+      autoTraffic: false, // Reset auto-traffic (2D)
+      autoGeoTraffic: true, // Keep auto-geo-traffic enabled
+      gridFailure: false, // Reset grid
+      _tickCount: 0,
+    });
+  }
 }));

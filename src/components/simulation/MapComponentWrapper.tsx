@@ -9,7 +9,7 @@ export interface MapComponentWrapperProps {
   poles: Pole[];
   geoVehicles: GeoVehicle[];
   getPoleCoordinates: (index: number) => [number, number];
-  getPoleColor: (mode: string) => string;
+  getPoleColor: (status: string, mode: string) => string;
   getMarkerRadius: (brightness: number) => number;
   formatPower: (brightness: number) => string;
   highwayRoutes: typeof HIGHWAY_ROUTES;

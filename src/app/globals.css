@@ -45,6 +45,21 @@ body {
   background: #5c5f66; 
 }
 
+/* Custom scrollbar for event log */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569; 
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b; 
+}
+
 /* Asphalt Texture Pattern */
 .asphalt-texture {
   background-image: radial-gradient(circle, rgba(100, 100, 100, 0.3) 1px, transparent 1px);

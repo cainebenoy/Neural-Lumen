@@ -1,7 +1,9 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
+import { Analytics } from './Analytics';
+import { EventLog } from '@/components/ui/EventLog';
 
 /**
  * Sidebar Component - The Control Deck
@@ -26,7 +28,8 @@ export const Sidebar = () => {
     spawnGeoVehicle,
     spawnGeoTrafficBurst,
     toggleAutoGeoTraffic,
-    triggerGridFailure 
+    triggerGridFailure,
+    reset
   } = useSimulationStore();
 
   return (
@@ -87,7 +90,7 @@ export const Sidebar = () => {
                   <WindIcon size={16} className="text-emerald-400" />
                   WIND
                 </span>
-                <span className="text-emerald-400">{env.windSpeed} m/s</span>
+                <span className="text-emerald-400">{env.windSpeed} km/h</span>
               </label>
               <input 
                 type="range" 
@@ -397,11 +400,39 @@ export const Sidebar = () => {
             <Zap size={18} className="drop-shadow-[0_0_6px_rgba(251,146,60,0.6)]" />
             <span className="text-[10px] tracking-[0.2em]">{gridFailure ? 'RESTORE GRID' : 'GRID FAILURE'}</span>
           </button>
+
+          {/* Reset Button */}
+          <button 
+            onClick={reset}
+            className="w-full h-12 mt-3 bg-gradient-to-b from-slate-800/60 to-slate-900/80 border-2 border-slate-600 text-slate-400 font-bold rounded hover:from-slate-700/70 hover:to-slate-800/90 hover:border-slate-500 hover:text-slate-300 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_4px_0_#1e293b,0_6px_12px_rgba(0,0,0,0.6)]"
+          >
+            <RotateCcw size={16} />
+            <span className="text-[10px] tracking-[0.2em]">RESET SIM</span>
+          </button>
+        </div>
+
+        {/* MODULE 5: Analytics */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-emerald-900/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4)]">
+          <div className="text-[10px] tracking-[0.2em] text-emerald-400/80 uppercase font-bold mb-3 pb-2 border-b border-emerald-900/30">
+            ROI Analytics
+          </div>
+          <Analytics />
         </div>
 
         {/* MODULE 5: Live Telemetry Graph */}
         <div className="flex-1 min-h-0 max-h-72 bg-slate-900/50 p-4 rounded border-2 border-slate-700/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4)]">
           <PowerGraph />
+        </div>
+
+        {/* MODULE 6: Event Log */}
+        <div className="bg-slate-900/50 p-3 rounded border-2 border-slate-700/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4)]">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700/50">
+            <ScrollText size={12} className="text-slate-400" />
+            <span className="text-[9px] tracking-[0.2em] text-slate-400 uppercase font-bold">
+              System Events
+            </span>
+          </div>
+          <EventLog />
         </div>
 
       </div>
