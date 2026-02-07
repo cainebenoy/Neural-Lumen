@@ -1,5 +1,5 @@
 import { useSimulationStore } from '@/lib/store';
-import { Leaf, TrendingDown, Zap, Battery } from 'lucide-react';
+import { Leaf, TrendingDown, Zap, Battery, Wind } from 'lucide-react';
 
 // Baseline for 2000 poles at 150W each = 300kW
 const BASELINE_POWER_KW = 300;
@@ -90,6 +90,38 @@ export const Analytics = () => {
             className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-500"
             style={{ width: `${avgBrightness}%` }}
           />
+        </div>
+      </div>
+
+      {/* Wind Turbine Output Card */}
+      <div className="bg-[#25262b] p-3 rounded-lg border border-[#373a40] shadow-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Wind className="text-sky-400" size={14} />
+            <span className="text-[9px] tracking-widest text-slate-400 uppercase font-bold">
+              Turbine Output
+            </span>
+          </div>
+          <span className="text-[9px] text-sky-600 font-mono">renewable</span>
+        </div>
+        <div className="font-mono text-xl text-sky-400 drop-shadow-[0_0_12px_rgba(56,189,248,0.5)]">
+          {metrics.turbineOutput.toFixed(1)} kW
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1.5">
+          <div className="flex justify-between">
+            <span>Consumption: {metrics.powerDraw.toFixed(1)} kW</span>
+            <span className="text-emerald-500">Net: {metrics.netGridDraw.toFixed(1)} kW</span>
+          </div>
+        </div>
+        {/* Offset bar shows how much consumption is offset by wind */}
+        <div className="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-sky-600 to-emerald-500 transition-all duration-500"
+            style={{ width: `${Math.min(100, metrics.powerDraw > 0 ? (metrics.turbineOutput / metrics.powerDraw) * 100 : 0)}%` }}
+          />
+        </div>
+        <div className="text-[9px] text-slate-600 mt-1 text-center">
+          {metrics.powerDraw > 0 ? Math.min(100, (metrics.turbineOutput / metrics.powerDraw * 100)).toFixed(0) : 0}% renewable offset
         </div>
       </div>
     </div>
