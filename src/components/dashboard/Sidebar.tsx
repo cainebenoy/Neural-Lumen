@@ -95,7 +95,7 @@ export const Sidebar = () => {
               <input 
                 type="range" 
                 min="0" 
-                max="30" 
+                max="100" 
                 aria-label="Wind speed control"
                 title="Adjust wind speed"
                 value={env.windSpeed}
