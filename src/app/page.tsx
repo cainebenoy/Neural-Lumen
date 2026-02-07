@@ -32,6 +32,8 @@ export default function Home() {
 
   // Simulation Loop: Call tick() every 200ms for smooth vehicle animation
   // (5x per second — each tick moves vehicles 1/5th of a 1-second step)
+  // Note: Console violations about "setInterval handler took Xms" are expected
+  // for compute-intensive simulations (2000 poles + physics + ML) and are non-critical
   useEffect(() => {
     const interval = setInterval(() => handleTick(), 200);
     return () => clearInterval(interval);
