@@ -17,6 +17,8 @@ export const Pole = ({ data }: { data: PoleType }) => {
     if (data.status === 'WARNING' && data.mode !== 'HAZARD_RED') return 'bg-orange-500 shadow-[0_0_20px_#f97316]';
     if (data.mode === 'HAZARD_RED') return 'bg-red-600 shadow-[0_0_28px_#dc2626]';
     if (data.mode === 'SPOTLIGHT_WHITE') return 'bg-white shadow-[0_0_32px_#ffffff]';
+    if (data.mode === 'INTERCEPT_STROBE') return 'bg-red-500 shadow-[0_0_40px_#ef4444]'; // Violent strobe
+    if (data.mode === 'STOP_BARRIER') return 'bg-red-700 shadow-[0_0_24px_#b91c1c]'; // Solid deep red
     if (data.mode === 'CORRIDOR_BLUE') return 'bg-blue-500 shadow-[0_0_24px_#3b82f6]';
     if (data.mode === 'BATTERY') return 'bg-orange-400/70 shadow-[0_0_12px_#fb923c]';
     if (data.mode === 'FOG_AMBER') return 'bg-amber-500 shadow-[0_0_20px_#f59e0b]';
@@ -84,6 +86,20 @@ export const Pole = ({ data }: { data: PoleType }) => {
         opacity: 1,
       };
     }
+    // INTERCEPT_STROBE: Neural Intercept - Violent red/white flash for target lock
+    if (data.mode === 'INTERCEPT_STROBE') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(239,68,68,${Math.min(1, 1.5 * b)}) 0%, rgba(255,255,255,${0.9 * b}) 25%, rgba(239,68,68,${0.6 * b}) 50%, transparent 75%)`,
+        opacity: 1,
+      };
+    }
+    // STOP_BARRIER: Neural Intercept - Solid deep red wall to stop innocent traffic
+    if (data.mode === 'STOP_BARRIER') {
+      return {
+        background: `radial-gradient(ellipse at center, rgba(185,28,28,${Math.min(1, 1.3 * b)}) 0%, rgba(185,28,28,${0.7 * b}) 45%, rgba(185,28,28,${0.3 * b}) 70%, transparent 85%)`,
+        opacity: 1,
+      };
+    }
 
     // STANDARD MODE: dramatic glow that reacts to vehicle proximity (brightness 80→100)
     return {
@@ -101,18 +117,22 @@ export const Pole = ({ data }: { data: PoleType }) => {
         className="absolute -bottom-20 w-40 h-40 pointer-events-none rounded-full blur-xl"
         style={{ ...getLightConeStyle(), transition: 'background 0.7s ease-in-out, opacity 0.7s ease-in-out' }}
         animate={
-          data.mode === 'CORRIDOR_BLUE'
+          data.mode === 'INTERCEPT_STROBE'
+            ? { opacity: [0, 1, 0, 1, 0] } // Extremely fast violent strobe
+            : data.mode === 'CORRIDOR_BLUE'
             ? { opacity: [0.3, 1, 0.3] } // Rapid strobe for ambulance corridor
             : data.mode === 'HAZARD_RED'
             ? { opacity: [0.4, 1, 0.4] } // Slow, heavy pulse like lighthouse warning
             : data.mode === 'SPOTLIGHT_WHITE'
             ? { opacity: [0.9, 1, 0.9] } // Steady bright beam with subtle pulse
+            : data.mode === 'STOP_BARRIER'
+            ? {} // No animation - solid static red
             : data.mode === 'EMERGENCY_PULSE' 
             ? { opacity: [0.2, 0.8, 0.2] } 
             : {}
         }
         transition={{ 
-          duration: data.mode === 'CORRIDOR_BLUE' ? 0.5 : data.mode === 'HAZARD_RED' ? 2.5 : data.mode === 'SPOTLIGHT_WHITE' ? 1.0 : 1.5,
+          duration: data.mode === 'INTERCEPT_STROBE' ? 0.15 : data.mode === 'CORRIDOR_BLUE' ? 0.5 : data.mode === 'HAZARD_RED' ? 2.5 : data.mode === 'SPOTLIGHT_WHITE' ? 1.0 : 1.5,
           repeat: Infinity, 
           ease: "easeInOut" 
         }}
@@ -152,6 +172,8 @@ export const Pole = ({ data }: { data: PoleType }) => {
           <div className={cn(
             "absolute inset-1 rounded-full blur-sm",
             data.status === 'CRASH' ? 'bg-red-400' :
+            data.mode === 'INTERCEPT_STROBE' ? 'bg-white' : // Alternates with red
+            data.mode === 'STOP_BARRIER' ? 'bg-red-500' :
             data.mode === 'HAZARD_RED' ? 'bg-red-400' :
             data.mode === 'SPOTLIGHT_WHITE' ? 'bg-white' :
             data.mode === 'CORRIDOR_BLUE' ? 'bg-blue-400' :

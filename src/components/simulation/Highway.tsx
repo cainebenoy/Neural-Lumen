@@ -51,7 +51,7 @@ export const Highway = () => {
         ))}
       </div>
 
-      {/* KINETIC TRAFFIC - Autonomous Vehicles (Cars, Trucks, Ambulances & Ghost Trucks) */}
+      {/* KINETIC TRAFFIC - Autonomous Vehicles (Cars, Trucks, Ambulances, Ghost Trucks & Wrong-Way Drivers) */}
       <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none">
         {vehicles.map((vehicle) => {
           // Lane positioning: Lane 1 (35%) vs Lane 2 (55%)
@@ -59,11 +59,15 @@ export const Highway = () => {
           const isTruck = vehicle.type === 'truck';
           const isAmbulance = vehicle.type === 'ambulance';
           const isStalled = vehicle.speed === 0; // Ghost Truck - Phantom Shield
+          const isWrongWay = vehicle.speed < 0; // Wrong-Way Driver - Neural Intercept
 
+          // Wrong-Way Driver: Black SUV with red border (the rogue)
           // Ghost Truck: Dark grey, no glow (unlit, dangerous)
           // Ambulance: white body with emergency styling
           // Truck: amber/orange, wider | Car: cyan/rose by lane, smaller
-          const vehicleClasses = isStalled
+          const vehicleClasses = isWrongWay
+            ? 'w-5 h-2.5 bg-black rounded border-2 border-red-600 z-50' // Black SUV, red border
+            : isStalled
             ? 'w-8 h-3.5 bg-slate-700 rounded border-slate-600 z-40' // Dark, unlit truck
             : isAmbulance
             ? 'w-8 h-3.5 bg-white rounded z-50'
@@ -77,7 +81,17 @@ export const Highway = () => {
             <motion.div
               key={vehicle.id}
               className={`absolute ${vehicleClasses} border border-white/30 pointer-events-auto`}
-              animate={isAmbulance ? {
+              animate={isWrongWay ? {
+                left: `${vehicle.x_pos}%`,
+                bottom: `${bottomOffset}%`,
+                scale: 1,
+                opacity: 1,
+                boxShadow: [
+                  '0 0 15px rgba(239,68,68,0.8), 0 0 30px rgba(239,68,68,0.4)',
+                  '0 0 25px rgba(239,68,68,1), 0 0 50px rgba(239,68,68,0.6)',
+                  '0 0 15px rgba(239,68,68,0.8), 0 0 30px rgba(239,68,68,0.4)',
+                ],
+              } : isAmbulance ? {
                 left: `${vehicle.x_pos}%`,
                 bottom: `${bottomOffset}%`,
                 scale: 1,
@@ -93,12 +107,20 @@ export const Highway = () => {
                 scale: 1,
                 opacity: 1,
               }}
-              initial={isStalled 
+              initial={isWrongWay
+                ? { left: '100%', bottom: `${bottomOffset}%`, scale: 1, opacity: 1 }
+                : isStalled 
                 ? { left: `${vehicle.x_pos}%`, bottom: `${bottomOffset}%`, scale: 1, opacity: 1 }
                 : { left: '0%', bottom: `${bottomOffset}%`, scale: 0, opacity: 0 }
               }
               exit={{ scale: 0, opacity: 0 }}
-              transition={isAmbulance ? { 
+              transition={isWrongWay ? { 
+                left: { duration: 0.2, ease: "linear" },
+                bottom: { duration: 0.2, ease: "linear" },
+                scale: { duration: 0.3 },
+                opacity: { duration: 0.3 },
+                boxShadow: { duration: 0.3, repeat: Infinity, ease: "easeInOut" },
+              } : isAmbulance ? { 
                 left: { duration: 0.2, ease: "linear" },
                 bottom: { duration: 0.2, ease: "linear" },
                 scale: { duration: 0.3 },
@@ -111,6 +133,13 @@ export const Highway = () => {
                 opacity: { duration: 0.3 },
               }}
             >
+              {/* Wrong-Way Driver: Prohibited icon - The Rogue */}
+              {isWrongWay && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-red-500 text-sm font-bold animate-pulse">
+                  🚫
+                </div>
+              )}
+
               {/* Ghost Truck: Warning Icon - No headlights, broken down */}
               {isStalled && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-amber-500 text-sm font-bold animate-pulse">

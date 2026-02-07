@@ -35,7 +35,7 @@ const notify = (type: 'crash' | 'weather' | 'grid' | 'info' | 'success', title: 
 };
 
 // TypeScript Interfaces
-export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY' | 'CORRIDOR_BLUE' | 'HAZARD_RED' | 'SPOTLIGHT_WHITE';
+export type PoleMode = 'STANDARD' | 'FOG_AMBER' | 'ECO_DIM' | 'EMERGENCY_PULSE' | 'BATTERY' | 'CORRIDOR_BLUE' | 'HAZARD_RED' | 'SPOTLIGHT_WHITE' | 'INTERCEPT_STROBE' | 'STOP_BARRIER';
 export type PoleStatus = 'ACTIVE' | 'CRASH' | 'WARNING';
 export type WeatherType = 'CLEAR' | 'RAIN' | 'SNOW';
 
@@ -90,6 +90,7 @@ interface SimulationState {
     carbonCredits: number; // Accumulated credits
     livesSaved: number; // Golden Hour Protocol impact
     accidentsPrevented: number; // Phantom Shield impact
+    interceptsCount: number; // Neural Intercept wrong-way driver stops
   };
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
   autoTraffic: boolean; // Auto-spawn vehicles (2D view)
@@ -104,7 +105,7 @@ interface SimulationState {
   setWeather: (weather: WeatherType) => void;
   tick: () => void;
   reset: () => void;
-  spawnVehicle: (forceType?: VehicleType, isStalled?: boolean) => void;
+  spawnVehicle: (forceType?: VehicleType, isStalled?: boolean, isWrongWay?: boolean) => void;
   spawnTrafficJam: () => void;
   toggleAutoTraffic: () => void;
   spawnGeoVehicle: (routeIndex?: number, forceType?: VehicleType) => void;
@@ -173,7 +174,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   vehicles: [], // Traffic simulation starts empty (2D view)
   geoVehicles: [], // Geographic vehicles (map view)
   env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0 },
+  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0, interceptsCount: 0 },
   powerHistory: [], // Start with empty history
   autoTraffic: false, // Auto-spawn disabled by default (2D view)
   autoGeoTraffic: true, // Auto-spawn enabled for map view by default
@@ -563,6 +564,41 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       });
     }
 
+    // NEURAL INTERCEPT: Check for wrong-way drivers (Ghost Riders)
+    const wrongWayVehicle = updatedVehicles.find(v => v.speed < 0);
+    let interceptStrobePoleId: number | null = null;
+    const stopBarrierPoleIds: Set<number> = new Set();
+    
+    if (wrongWayVehicle) {
+      const roguePosition = wrongWayVehicle.x_pos; // 0-100%
+      
+      // Find the pole closest to the wrong-way driver (INTERCEPT_STROBE - Target Lock)
+      let closestPoleIndex = 0;
+      let minDistance = Infinity;
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        const distance = Math.abs(polePosition - roguePosition);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestPoleIndex = index;
+          interceptStrobePoleId = pole.id;
+        }
+      });
+      
+      // Find 10 poles UPSTREAM (ahead of the wrong-way driver in the direction of normal traffic)
+      // This creates a STOP_BARRIER to warn innocent drivers coming from the start
+      // Wrong-way driver moves from 100% to 0%, so upstream means LOWER position percentage
+      const barrierStartPercent = Math.max(0, roguePosition - 10); // 10% behind (towards start)
+      const barrierEndPercent = roguePosition - 1; // End just before rogue
+      
+      state.poles.forEach((pole, index) => {
+        const polePosition = (index / (state.poles.length - 1)) * 100;
+        if (polePosition >= barrierStartPercent && polePosition < barrierEndPercent) {
+          stopBarrierPoleIds.add(pole.id);
+        }
+      });
+    }
+
     // RADAR DETECTION LOGIC
     // Each pole covers ~5% of the highway (20 poles = 100%)
     const updatedPoles = state.poles.map((pole, index) => {
@@ -596,10 +632,32 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         };
       }
       
-      // Reset CORRIDOR_BLUE, HAZARD_RED, SPOTLIGHT_WHITE poles back to normal
+      // NEURAL INTERCEPT: Target Lock on wrong-way driver
+      if (interceptStrobePoleId === pole.id) {
+        return {
+          ...pole,
+          mode: 'INTERCEPT_STROBE' as PoleMode,
+          brightness: 100,
+          status: 'CRASH' as PoleStatus, // Critical status for target lock
+        };
+      }
+      
+      // NEURAL INTERCEPT: Stop barrier for innocent drivers
+      if (stopBarrierPoleIds.has(pole.id)) {
+        return {
+          ...pole,
+          mode: 'STOP_BARRIER' as PoleMode,
+          brightness: 100,
+          status: 'WARNING' as PoleStatus,
+        };
+      }
+      
+      // Reset special modes back to normal when no longer needed
       if ((pole.mode === 'CORRIDOR_BLUE' && !ambulanceCorridorPoleIds.has(pole.id)) ||
           (pole.mode === 'HAZARD_RED' && !hazardRedPoleIds.has(pole.id)) ||
-          (pole.mode === 'SPOTLIGHT_WHITE' && spotlightPoleId !== pole.id)) {
+          (pole.mode === 'SPOTLIGHT_WHITE' && spotlightPoleId !== pole.id) ||
+          (pole.mode === 'INTERCEPT_STROBE' && interceptStrobePoleId !== pole.id) ||
+          (pole.mode === 'STOP_BARRIER' && !stopBarrierPoleIds.has(pole.id))) {
         const isDaytime = state.env.time >= 600 && state.env.time <= 1800;
         const isEcoHours = state.env.time >= 100 && state.env.time <= 400;
         let resetMode: PoleMode = 'STANDARD';
@@ -705,6 +763,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         livesSaved: state.metrics.livesSaved + (ambulance ? 0.002 : 0),
         // Phantom Shield: Increment accidents prevented when stalled vehicle is detected (~1 accident prevented per minute of protection)
         accidentsPrevented: state.metrics.accidentsPrevented + (stalledVehicle ? 0.003 : 0),
+        // Neural Intercept: Track active intercept (already counted on spawn, maintain current value)
+        interceptsCount: state.metrics.interceptsCount,
       },
       poles: updatedPoles.map(p => ({
         ...p,
@@ -719,11 +779,29 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   /**
    * SPAWN VEHICLE: Creates a new vehicle at the start of the highway
-   * Supports car, truck, ambulance (Golden Hour Protocol), and stalled vehicles (Phantom Shield)
+   * Supports car, truck, ambulance (Golden Hour Protocol), stalled vehicles (Phantom Shield), and wrong-way drivers (Neural Intercept)
    */
-  spawnVehicle: (forceType?: VehicleType, isStalled?: boolean) => set((state) => {
+  spawnVehicle: (forceType?: VehicleType, isStalled?: boolean, isWrongWay?: boolean) => set((state) => {
     // Determine vehicle type
     const vehicleType: VehicleType = forceType || (Math.random() < 0.3 ? 'truck' : 'car');
+    
+    // NEURAL INTERCEPT: Wrong-way driver (Ghost Rider)
+    if (isWrongWay) {
+      notify('crash', '🚫 NEURAL INTERCEPT', 'Wrong-way driver detected! Activating Target Lock and Stop Barrier.');
+      return {
+        vehicles: [...state.vehicles, {
+          id: Date.now() + Math.random(),
+          x_pos: 100, // Start at end of highway
+          speed: -150, // Negative speed (moving backwards/wrong way)
+          lane: 2, // Fast lane (most dangerous)
+          type: 'car' as VehicleType,
+        }],
+        metrics: {
+          ...state.metrics,
+          interceptsCount: state.metrics.interceptsCount + 1,
+        },
+      };
+    }
     
     // PHANTOM SHIELD: Stalled vehicle (Ghost Truck)
     if (isStalled) {
@@ -907,7 +985,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       vehicles: [], // Clear traffic (2D view)
       geoVehicles: [], // Clear geo traffic (map view)
       env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0 },
+      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0, livesSaved: 0, accidentsPrevented: 0, interceptsCount: 0 },
       powerHistory: [], // Clear history on reset
       autoTraffic: false, // Reset auto-traffic (2D)
       autoGeoTraffic: true, // Keep auto-geo-traffic enabled

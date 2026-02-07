@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle, Ban } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 import { Analytics } from './Analytics';
 import { EventLog } from '@/components/ui/EventLog';
@@ -367,6 +367,40 @@ export const Sidebar = () => {
 
             <p className="text-[8px] text-slate-600 font-mono text-center">
               Infrastructure Brake Lights — Red warning zone 500m behind
+            </p>
+          </div>
+        </div>
+
+        {/* MODULE 3.7: Neural Intercept - Wrong-Way Driver Detection */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-red-900/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_16px_rgba(239,68,68,0.15)]">
+          <div className="text-[10px] tracking-[0.2em] text-red-400 uppercase font-bold mb-4 pb-2 border-b border-red-900/50 flex items-center justify-between">
+            <span>Neural Intercept</span>
+            <span className="text-[8px] px-1.5 py-0.5 bg-black text-red-400 rounded border border-red-700/50 animate-pulse">
+              ACTIVE DEFENSE
+            </span>
+          </div>
+          
+          <div className="space-y-3">
+            {/* Wrong-Way Counter */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Ghost Riders Active</span>
+              <span className="text-red-400 font-mono font-bold">
+                {vehicles.filter(v => v.speed < 0).length}
+              </span>
+            </div>
+
+            {/* Spawn Wrong-Way Driver Button */}
+            <button 
+              onClick={() => spawnVehicle('car', false, true)}
+              title="Simulates a head-on collision vector to test Active Intercept Logic"
+              className="w-full h-14 bg-gradient-to-b from-black to-slate-950 border-2 border-red-600 text-red-400 font-bold rounded hover:from-slate-900 hover:to-black hover:border-red-500 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-[0_4px_0_#450a0a,0_6px_12px_rgba(0,0,0,0.8),0_0_16px_rgba(239,68,68,0.2)]"
+            >
+              <Ban size={20} className="text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+              <span className="text-xs tracking-[0.15em]">SPAWN WRONG-WAY DRIVER</span>
+            </button>
+
+            <p className="text-[8px] text-slate-600 font-mono text-center">
+              Target Lock + Stop Barrier — Infrastructure as Immune System
             </p>
           </div>
         </div>
