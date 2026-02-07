@@ -84,7 +84,9 @@ interface SimulationState {
     visibility: number; // 0-100% visibility (100 = clear, 0 = zero visibility)
   };
   metrics: {
-    powerDraw: number; // kW
+    powerDraw: number; // kW (consumption only)
+    turbineOutput: number; // kW harvested from wind turbines
+    netGridDraw: number; // kW (powerDraw - turbineOutput)
     carbonCredits: number; // Accumulated credits
   };
   powerHistory: PowerHistoryPoint[]; // Real-time telemetry (max 50 points)
@@ -169,7 +171,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   vehicles: [], // Traffic simulation starts empty (2D view)
   geoVehicles: [], // Geographic vehicles (map view)
   env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-  metrics: { powerDraw: 24.0, carbonCredits: 0 },
+  metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0 },
   powerHistory: [], // Start with empty history
   autoTraffic: false, // Auto-spawn disabled by default (2D view)
   autoGeoTraffic: true, // Auto-spawn enabled for map view by default
@@ -314,9 +316,15 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         return { ...p, mode: 'STANDARD' as PoleMode, brightness: 0 };
       }
       
-      // ECO MODE: 1 AM - 4 AM (only when no weather hazard)
-      if (isEcoHours) {
+      // ECO MODE: 1 AM - 4 AM AND no traffic (per PRD FR-06)
+      const hasTraffic = state.vehicles.length > 0 || state.geoVehicles.length > 0;
+      if (isEcoHours && !hasTraffic) {
         return { ...p, mode: 'ECO_DIM' as PoleMode, brightness: 30 };
+      }
+      
+      // Eco hours but with traffic: stay at standard reduced brightness
+      if (isEcoHours && hasTraffic) {
+        return { ...p, mode: 'STANDARD' as PoleMode, brightness: 40 };
       }
       
       // Standard night operation
@@ -333,7 +341,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
    * WEATHER CONTROL: Toggle between CLEAR, RAIN, and SNOW
    * Demonstrates weather resilience of the lighting system
    * Auto-enables fog mode for RAIN and SNOW conditions
-   * CLEAR resets poles back to STANDARD mode
+   * CLEAR weather turns OFF fog mode automatically (weather-induced fog clears)
    * Visibility degrades with weather: RAIN=50%, SNOW=30%, FOG alone=40%
    * Vehicle speeds are capped by weather conditions in tick()
    */
@@ -347,8 +355,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       notify('success', 'Weather Cleared', 'Returning to optimal lighting conditions.');
     }
     
-    const needsFog = weather === 'RAIN' || weather === 'SNOW';
-    const visibility = calculateVisibility(needsFog || state.env.fog, weather, state.env.windSpeed);
+    // RAIN/SNOW require fog mode; CLEAR turns fog OFF
+    const newFogState = weather === 'RAIN' || weather === 'SNOW';
+    const visibility = calculateVisibility(newFogState, weather, state.env.windSpeed);
     
     const newPoles = state.poles.map(p => {
       // Don't override crash or warning states
@@ -359,7 +368,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         return { ...p, mode: 'BATTERY' as PoleMode, brightness: 25 };
       }
       
-      if (needsFog) {
+      if (newFogState) {
         // SNOW: max brightness (worst visibility), RAIN: 90%
         const weatherBrightness = weather === 'SNOW' ? 100 : 90;
         return { ...p, mode: 'FOG_AMBER' as PoleMode, brightness: weatherBrightness };
@@ -378,7 +387,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     });
 
     return {
-      env: { ...state.env, weather, fog: needsFog || state.env.fog, visibility },
+      env: { ...state.env, weather, fog: newFogState, visibility },
       poles: newPoles
     };
   }),
@@ -405,9 +414,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     const baselineWatts = state.poles.length * MAX_WATTS_PER_POLE;
     const savings = Math.max(0, baselineWatts - totalWatts);
     
-    // Wind harvest calculation: P = 0.5 * windSpeed^3 clamped to max 50W per pole
-    // With realistic variance
-    const harvestPerPole = Math.min(50, state.env.windSpeed * 0.5 * (0.8 + Math.random() * 0.4));
+    // Wind harvest calculation per PRD: P = 0.5 × WindSpeed^3 (scaled and clamped to max 50W per pole)
+    // Using (windSpeed/10)^3 to normalize for realistic VAWT output curves with variance
+    const baseHarvest = 0.5 * Math.pow(state.env.windSpeed / 10, 3);
+    const harvestPerPole = Math.min(50, baseHarvest * (0.8 + Math.random() * 0.4));
 
     // Convert to kW
     const newPowerDraw = Number((totalWatts / 1000).toFixed(2));
@@ -572,6 +582,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     return {
       metrics: {
         powerDraw: newPowerDraw,
+        // Total turbine output: harvestPerPole * number of poles (in kW)
+        turbineOutput: Number(((harvestPerPole * state.poles.length) / 1000).toFixed(2)),
+        // Net grid draw: consumption minus wind harvest
+        netGridDraw: Number(Math.max(0, (totalWatts - (harvestPerPole * state.poles.length)) / 1000).toFixed(2)),
         // Carbon credit formula: (kWh saved) * Grid emission factor * credit rate
         // savings in Watts, tick is 200ms = 1/18000 hour
         // Grid emission factor India = 0.82 kgCO2/kWh
@@ -747,7 +761,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       vehicles: [], // Clear traffic (2D view)
       geoVehicles: [], // Clear geo traffic (map view)
       env: { fog: false, windSpeed: 10, time: 2000, weather: 'CLEAR', visibility: 100 },
-      metrics: { powerDraw: 24.0, carbonCredits: 0 },
+      metrics: { powerDraw: 24.0, turbineOutput: 0, netGridDraw: 24.0, carbonCredits: 0 },
       powerHistory: [], // Clear history on reset
       autoTraffic: false, // Reset auto-traffic (2D)
       autoGeoTraffic: true, // Keep auto-geo-traffic enabled
