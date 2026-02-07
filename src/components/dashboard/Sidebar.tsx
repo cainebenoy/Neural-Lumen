@@ -1,6 +1,6 @@
 import { useSimulationStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText } from 'lucide-react';
+import { Truck, CloudFog, Wind as WindIcon, Clock, Car, Cloud, CloudSnow, Zap, TrafficCone, Eye, Globe, MapPin, RotateCcw, ScrollText, Siren, AlertTriangle } from 'lucide-react';
 import { PowerGraph } from './PowerGraph';
 import { Analytics } from './Analytics';
 import { EventLog } from '@/components/ui/EventLog';
@@ -301,6 +301,73 @@ export const Sidebar = () => {
               <TrafficCone size={16} className="drop-shadow-[0_0_6px_rgba(167,139,250,0.6)]" />
               <span className="text-[10px] tracking-[0.15em]">SPAWN TRAFFIC JAM</span>
             </button>
+          </div>
+        </div>
+
+        {/* MODULE 3.5: Emergency Response - Golden Hour Protocol */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-blue-800/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_16px_rgba(59,130,246,0.2)]">
+          <div className="text-[10px] tracking-[0.2em] text-blue-400 uppercase font-bold mb-4 pb-2 border-b border-blue-800/50 flex items-center justify-between">
+            <span>Emergency Response</span>
+            <span className="text-[8px] px-1.5 py-0.5 bg-red-900/50 text-red-400 rounded border border-red-700/50 animate-pulse">
+              PRIORITY: CRITICAL
+            </span>
+          </div>
+          
+          <div className="space-y-3">
+            {/* Active Ambulance Counter */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Active Ambulances</span>
+              <span className="text-blue-400 font-mono font-bold">
+                {vehicles.filter(v => v.type === 'ambulance').length}
+              </span>
+            </div>
+
+            {/* Dispatch Ambulance Button */}
+            <button 
+              onClick={() => spawnVehicle('ambulance')}
+              className="w-full h-14 bg-gradient-to-b from-blue-900/50 to-blue-950/70 border-2 border-blue-600 text-white font-bold rounded hover:from-blue-800/60 hover:to-blue-900/80 hover:border-blue-500 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-[0_4px_0_#1e40af,0_6px_12px_rgba(0,0,0,0.6),0_0_20px_rgba(59,130,246,0.3)]"
+            >
+              <Siren size={20} className="text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)] animate-pulse" />
+              <span className="text-xs tracking-[0.15em]">DISPATCH AMBULANCE</span>
+            </button>
+
+            <p className="text-[8px] text-slate-600 font-mono text-center">
+              Golden Hour Protocol — Blue corridor lights 500m ahead
+            </p>
+          </div>
+        </div>
+
+        {/* MODULE 3.6: Phantom Shield - Ghost Truck Detection */}
+        <div className="bg-slate-900/50 p-4 rounded border-2 border-amber-800/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5),0_4px_8px_rgba(0,0,0,0.4),0_0_16px_rgba(245,158,11,0.15)]">
+          <div className="text-[10px] tracking-[0.2em] text-amber-400 uppercase font-bold mb-4 pb-2 border-b border-amber-800/50 flex items-center justify-between">
+            <span>Phantom Shield</span>
+            <span className="text-[8px] px-1.5 py-0.5 bg-amber-900/50 text-amber-300 rounded border border-amber-700/50">
+              HAZARD DEFENSE
+            </span>
+          </div>
+          
+          <div className="space-y-3">
+            {/* Stalled Vehicle Counter */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Ghost Trucks Detected</span>
+              <span className="text-amber-400 font-mono font-bold">
+                {vehicles.filter(v => v.speed === 0).length}
+              </span>
+            </div>
+
+            {/* Simulate Breakdown Button */}
+            <button 
+              onClick={() => spawnVehicle('truck', true)}
+              title="Spawns an unlit stationary truck to test Infrastructure Brake Lights"
+              className="w-full h-14 bg-gradient-to-b from-amber-900/50 to-amber-950/70 border-2 border-amber-600 text-white font-bold rounded hover:from-amber-800/60 hover:to-amber-900/80 hover:border-amber-500 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-[0_4px_0_#92400e,0_6px_12px_rgba(0,0,0,0.6),0_0_16px_rgba(245,158,11,0.2)]"
+            >
+              <AlertTriangle size={20} className="text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+              <span className="text-xs tracking-[0.15em]">SIMULATE BREAKDOWN</span>
+            </button>
+
+            <p className="text-[8px] text-slate-600 font-mono text-center">
+              Infrastructure Brake Lights — Red warning zone 500m behind
+            </p>
           </div>
         </div>
 
